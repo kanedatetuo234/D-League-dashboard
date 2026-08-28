@@ -2,7 +2,8 @@
   'use strict';
   const CONFIG = {
     // Google Apps ScriptをウェブアプリとしてデプロイしたURLを設定します。
-    URL: 'https://script.google.com/macros/s/AKfycbycroeNJuDlI-RFGmHkmlU7Hip3RhEgk_30NaBbe452MlFQLZ0roofkt3ml9LFMx1Ci/exec',
+    GAS_URL: 'https://script.google.com/macros/s/AKfycbycroeNJuDlI-RFGmHkmlU7Hip3RhEgk_30NaBbe452MlFQLZ0roofkt3ml9LFMx1Ci/exec',
+    URL: location.hostname.endsWith('.workers.dev') ? '/api' : 'https://script.google.com/macros/s/AKfycbycroeNJuDlI-RFGmHkmlU7Hip3RhEgk_30NaBbe452MlFQLZ0roofkt3ml9LFMx1Ci/exec',
     TIMEOUT_MS: 10000,
   };
   function normalizeMember(member) {
