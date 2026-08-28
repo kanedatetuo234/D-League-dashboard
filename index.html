@@ -60,6 +60,8 @@
 
         <article class="panel period-ranking-panel"><div class="panel-heading"><div><p class="section-kicker">PERIOD RANKING</p><h2 id="period-ranking-title">週間ランキング</h2></div></div><div id="period-ranking-list" class="mini-ranking"></div></article>
 
+        <article class="panel match-notes-panel"><div class="panel-heading"><div><p class="section-kicker">MATCH NOTES</p><h2>対局メモ</h2></div><span class="panel-note">全体情報</span></div><div id="match-notes-list" class="match-notes-list"></div></article>
+
         <article class="panel personal-panel"><div class="panel-heading"><div><p class="section-kicker">PLAYER PROFILE</p><h2>個人成績</h2></div><select id="player-select" aria-label="プレイヤー選択"></select></div><div id="personal-stats" class="personal-stats"></div><div class="personal-chart-wrap"><canvas id="personal-chart" aria-label="個人成績推移"></canvas></div><div class="recent-games"><h3>直近10半荘</h3><div id="recent-games-list"></div></div></article>
 
         <article class="panel head-to-head-panel"><div class="panel-heading"><div><p class="section-kicker">HEAD TO HEAD</p><h2>メンバー対戦成績</h2></div></div><div class="table-scroll"><table><thead><tr id="head-to-head-head"></tr></thead><tbody id="head-to-head-body"></tbody></table></div></article>
@@ -70,6 +72,7 @@
         <div class="dialog-heading"><div><p class="section-kicker">MATCH ENTRY</p><h2>対局を登録</h2></div><button id="close-entry" class="dialog-close" type="button" aria-label="閉じる">×</button></div>
         <label class="form-field">対局日<input id="entry-date" type="date" required></label>
         <input id="entry-game-id" type="hidden">
+        <div class="entry-meta-fields"><label class="check-field"><input id="entry-yakuman" type="checkbox"> 役満あり</label><label class="form-field">対局コメント<textarea id="entry-comment" maxlength="200" rows="2" placeholder="今回の対局メモ（任意）"></textarea></label></div>
         <div id="entry-players" class="entry-players"></div>
         <p id="entry-message" class="entry-message" role="alert"></p>
         <div class="dialog-actions"><button id="cancel-entry" class="secondary-button" type="button">キャンセル</button><button id="entry-submit" class="primary-button" type="submit">登録する</button></div>

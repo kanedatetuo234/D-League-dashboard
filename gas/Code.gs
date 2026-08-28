@@ -39,7 +39,8 @@ function doPost(e) {
     const rows = createResultRows_(input);
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.RESULTS_SHEET);
     if (!sheet) throw new Error(`Sheet not found: ${CONFIG.RESULTS_SHEET}`);
-    rows.forEach(row => sheet.appendRow([row.game_id, row.date, row.player_id, row.player_name, row.score, row.rank, row.seat_order, row.yakitori, row.point]));
+    ensureResultHeaders_(sheet);
+    rows.forEach(row => sheet.appendRow([row.game_id, row.date, row.player_id, row.player_name, row.score, row.rank, row.seat_order, row.yakitori, row.point, row.yakuman, row.comment]));
     return jsonResponse_({ ok: true, game_id: rows[0].game_id, results: rows });
   } catch (error) {
     console.error(error && error.stack ? error.stack : error);
@@ -84,6 +85,8 @@ function createResultRows_(input) {
     score: toNumber_(player.score),
     seat_order: toNumber_(player.seat_order),
     yakitori: parseBoolean_(player.yakitori),
+    yakuman: parseBoolean_(input.yakuman),
+    comment: String(input.comment || '').trim(),
   }));
   if (players.some(player => !player.player_id || !isFinite(player.score))) throw new Error('プレイヤー、持ち点を確認してください。');
   if (new Set(players.map(player => player.player_id)).size !== 4) throw new Error('プレイヤーは4人とも別々にしてください。');
@@ -108,7 +111,8 @@ function updateGame_(input) {
   const targetRows = [];
   values.slice(1).forEach((row, index) => { if (String(row[0]).trim() === gameId) targetRows.push(index + 2); });
   if (targetRows.length !== 4) throw new Error('修正対象の対局データが4人分見つかりません。');
-  targetRows.sort((a, b) => a - b).forEach((rowNumber, index) => sheet.getRange(rowNumber, 1, 1, 9).setValues([[rows[index].game_id, rows[index].date, rows[index].player_id, rows[index].player_name, rows[index].score, rows[index].rank, rows[index].seat_order, rows[index].yakitori, rows[index].point]]));
+  ensureResultHeaders_(sheet);
+  targetRows.sort((a, b) => a - b).forEach((rowNumber, index) => sheet.getRange(rowNumber, 1, 1, 11).setValues([[rows[index].game_id, rows[index].date, rows[index].player_id, rows[index].player_name, rows[index].score, rows[index].rank, rows[index].seat_order, rows[index].yakitori, rows[index].point, rows[index].yakuman, rows[index].comment]]));
   return jsonResponse_({ ok: true, game_id: gameId, results: rows });
 }
 
@@ -158,7 +162,14 @@ function normalizeResult_(row) {
     seat_order: toNumber_(row.seat_order),
     yakitori: parseBoolean_(row.yakitori),
     point: null,
+    yakuman: parseBoolean_(row.yakuman),
+    comment: String(row.comment || '').trim(),
   };
+}
+
+function ensureResultHeaders_(sheet) {
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0].map(value => String(value).trim());
+  ['yakuman', 'comment'].forEach(header => { if (!headers.includes(header)) { sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header); } });
 }
 
 function validateResults_(results) {
