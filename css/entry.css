@@ -1,0 +1,4 @@
+.member-button{margin-top:12px;border:1px solid #8995b2;background:transparent;color:#dce4fa;border-radius:8px;padding:9px 14px;font-weight:700;cursor:pointer}
+@media(max-width:768px){.member-button{width:100%}}
+.kpi-grid{grid-template-columns:repeat(3,1fr)}
+@media(max-width:768px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}

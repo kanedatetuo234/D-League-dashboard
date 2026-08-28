@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="D-Leagueの麻雀戦績ダッシュボード">
+  <title>D-League 戦績表</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/charts.css">
+  <link rel="stylesheet" href="css/entry.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="site-header">
+      <div>
+        <p class="eyebrow">D-LEAGUE / MAHJONG STATS</p>
+        <h1>D-League 戦績表</h1>
+      </div>
+      <div class="header-meta">
+        <div class="period-tabs" aria-label="表示期間">
+          <button class="period-tab is-active" data-period="week">週間</button>
+          <button class="period-tab" data-period="month">月間</button>
+          <button class="period-tab" data-period="year">年間</button>
+        </div>
+        <p>最終更新：<time id="updated-at">2026/08/25 15:00</time></p>
+        <p class="connection-status"><span class="status-dot"></span>データ更新：Googleスプレッドシート連携中</p>
+        <button id="open-entry" class="entry-button" type="button">＋ 対局を登録</button>
+        <button id="open-member" class="member-button" type="button">＋ メンバー登録</button>
+      </div>
+    </header>
+
+    <main>
+      <div id="api-error" class="api-error" role="alert" hidden>戦績データを取得できませんでした。<br>時間をおいて再読み込みしてください。</div>
+      <section class="period-bar" aria-label="対象期間">
+        <button class="period-nav" aria-label="前の期間">‹</button>
+        <strong id="period-label">2026年8月 第4週</strong>
+        <button class="period-nav" aria-label="次の期間">›</button>
+      </section>
+
+      <section class="kpi-grid" aria-label="主要指標">
+        <article class="kpi-card"><span class="kpi-label">総対局数</span><strong id="kpi-games">24</strong><span class="kpi-sub">半荘</span></article>
+        <article class="kpi-card accent"><span class="kpi-label">前戦のトップ</span><strong id="kpi-last-top">—</strong><span class="kpi-sub">最新の対局</span></article>
+        <article class="kpi-card"><span class="kpi-label">前々戦のトップ</span><strong id="kpi-previous-top">—</strong><span class="kpi-sub">ひとつ前の対局</span></article>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="panel ranking-panel">
+          <div class="panel-heading"><div><p class="section-kicker">LEAGUE TABLE</p><h2>総合ランキング</h2></div><span class="panel-note">累計ポイント順</span></div>
+          <div class="table-scroll"><table><thead><tr><th>順位</th><th>名前</th><th>対局</th><th>1着</th><th>2着</th><th>3着</th><th>4着</th><th>平均順位</th><th>トップ率</th><th>累計pt</th></tr></thead><tbody id="ranking-body"></tbody></table></div>
+        </article>
+
+        <article class="panel chart-panel">
+          <div class="panel-heading"><div><p class="section-kicker">POINT HISTORY</p><h2>累計ポイント推移</h2></div><span class="panel-note">ダミーデータ</span></div>
+          <div class="chart-canvas-wrap"><canvas id="point-history-chart" aria-label="メンバー別の累計ポイント推移"></canvas></div>
+          <div class="legend"><span><i class="pink"></i>内村</span><span><i class="blue"></i>A</span><span><i class="green"></i>B</span><span><i class="gold"></i>C</span></div>
+        </article>
+
+        <article class="panel period-ranking-panel"><div class="panel-heading"><div><p class="section-kicker">PERIOD RANKING</p><h2 id="period-ranking-title">週間ランキング</h2></div></div><div id="period-ranking-list" class="mini-ranking"></div></article>
+
+        <article class="panel personal-panel"><div class="panel-heading"><div><p class="section-kicker">PLAYER PROFILE</p><h2>個人成績</h2></div><select id="player-select" aria-label="プレイヤー選択"></select></div><div id="personal-stats" class="personal-stats"></div><div class="personal-chart-wrap"><canvas id="personal-chart" aria-label="個人成績推移"></canvas></div><div class="recent-games"><h3>直近10半荘</h3><div id="recent-games-list"></div></div></article>
+
+        <article class="panel distribution-panel"><div class="panel-heading"><div><p class="section-kicker">RANK DISTRIBUTION</p><h2>順位分布</h2></div></div><div class="donut-wrap"><div class="donut-chart-wrap"><canvas id="rank-distribution-chart" aria-label="順位分布"></canvas></div><div id="distribution-list" class="distribution-list"></div></div></article>
+
+        <article class="panel head-to-head-panel"><div class="panel-heading"><div><p class="section-kicker">HEAD TO HEAD</p><h2>メンバー対戦成績</h2></div></div><div class="table-scroll"><table><thead><tr id="head-to-head-head"></tr></thead><tbody id="head-to-head-body"></tbody></table></div></article>
+      </section>
+    </main>
+    <dialog id="entry-dialog" class="entry-dialog">
+      <form id="entry-form" method="dialog">
+        <div class="dialog-heading"><div><p class="section-kicker">MATCH ENTRY</p><h2>対局を登録</h2></div><button id="close-entry" class="dialog-close" type="button" aria-label="閉じる">×</button></div>
+        <label class="form-field">対局日<input id="entry-date" type="date" required></label>
+        <div id="entry-players" class="entry-players"></div>
+        <p id="entry-message" class="entry-message" role="alert"></p>
+        <div class="dialog-actions"><button id="cancel-entry" class="secondary-button" type="button">キャンセル</button><button class="primary-button" type="submit">登録する</button></div>
+      </form>
+    </dialog>
+    <dialog id="member-dialog" class="entry-dialog member-dialog">
+      <form id="member-form" method="dialog">
+        <div class="dialog-heading"><div><p class="section-kicker">MEMBER ENTRY</p><h2>メンバー登録</h2></div><button id="close-member" class="dialog-close" type="button" aria-label="閉じる">×</button></div>
+        <label class="form-field">表示名<input id="member-name" type="text" maxlength="30" required placeholder="例：内村"></label>
+        <label class="form-field">グラフ色（任意）<input id="member-color" type="text" placeholder="#ff4f91"></label>
+        <p id="member-message" class="entry-message" role="alert"></p>
+        <div class="dialog-actions"><button id="cancel-member" class="secondary-button" type="button">キャンセル</button><button class="primary-button" type="submit">登録する</button></div>
+      </form>
+    </dialog>
+    <footer><span>D-LEAGUE STATS / v1.0 MOCKUP</span><span>Powered by Google Sheets</span></footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="js/stats.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
