@@ -20,7 +20,7 @@
     records.forEach(record => { if (!grouped.has(record.player_id)) grouped.set(record.player_id, []); grouped.get(record.player_id).push(record); });
     return [...grouped.entries()].map(([playerId, playerRecords]) => {
       const stats = calculatePlayerStats(playerRecords); const member = memberMap.get(playerId) || {};
-      return { id: playerId, name: member.display_name || playerRecords[0].player_name || playerId, ...stats };
+      return { id: playerId, name: member.display_name || playerRecords[0].player_name || playerId, icon: member.icon || '', color: member.color || '', ...stats };
     }).sort((a, b) => b.points - a.points || a.avg - b.avg || b.topRate - a.topRate || b.games - a.games);
   }
   function filterByPeriod(records, period, referenceDate = new Date()) {

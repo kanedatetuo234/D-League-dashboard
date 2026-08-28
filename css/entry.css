@@ -1,4 +1,6 @@
 .member-button{margin-top:12px;border:1px solid #8995b2;background:transparent;color:#dce4fa;border-radius:8px;padding:9px 14px;font-weight:700;cursor:pointer}
+.edit-game-button{border:1px solid #d9deea;background:#fff;color:var(--muted);border-radius:5px;padding:3px 7px;font-size:10px;cursor:pointer}
+.brand-block{display:grid;grid-template-columns:72px 1fr;column-gap:14px;align-items:center}.brand-block .eyebrow,.brand-block h1{grid-column:2}.site-logo{grid-row:1 / span 2;width:72px;height:72px;object-fit:cover;border-radius:16px;border:1px solid #556383;box-shadow:0 8px 24px #0008}.brand-block h1{margin-top:-2px}@media(max-width:768px){.brand-block{grid-template-columns:58px 1fr}.site-logo{width:58px;height:58px;border-radius:12px}}
 @media(max-width:768px){.member-button{width:100%}}
 .kpi-grid{grid-template-columns:repeat(3,1fr)}
 @media(max-width:768px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}

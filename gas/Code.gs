@@ -34,6 +34,7 @@ function doPost(e) {
   try {
     const input = JSON.parse(e.postData.contents || '{}');
     if (input.action === 'addMember') return addMember_(input);
+    if (input.action === 'updateGame') return updateGame_(input);
     const rows = createResultRows_(input);
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.RESULTS_SHEET);
     if (!sheet) throw new Error(`Sheet not found: ${CONFIG.RESULTS_SHEET}`);
@@ -73,10 +74,25 @@ function createResultRows_(input) {
   const sortedScores = players.map(player => player.score).sort((a, b) => b - a);
   players.forEach(player => { player.rank = 1 + sortedScores.filter(score => score > player.score).length; });
   const date = input.date ? formatDate_(input.date) : Utilities.formatDate(new Date(), CONFIG.TIME_ZONE, 'yyyy-MM-dd');
-  const gameId = `G${Utilities.formatDate(new Date(), CONFIG.TIME_ZONE, 'yyyyMMddHHmmss')}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+  const gameId = String(input.game_id || '').trim() || `G${Utilities.formatDate(new Date(), CONFIG.TIME_ZONE, 'yyyyMMddHHmmss')}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
   players.forEach(player => { player.game_id = gameId; player.date = date; });
   calculatePoints_(players);
   return players;
+}
+
+function updateGame_(input) {
+  const gameId = String(input.game_id || '').trim();
+  if (!gameId) throw new Error('修正対象の対局IDがありません。');
+  const rows = createResultRows_(input);
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = spreadsheet.getSheetByName(CONFIG.RESULTS_SHEET);
+  if (!sheet) throw new Error(`Sheet not found: ${CONFIG.RESULTS_SHEET}`);
+  const values = sheet.getDataRange().getValues();
+  const targetRows = [];
+  values.slice(1).forEach((row, index) => { if (String(row[0]).trim() === gameId) targetRows.push(index + 2); });
+  if (targetRows.length !== 4) throw new Error('修正対象の対局データが4人分見つかりません。');
+  targetRows.sort((a, b) => a - b).forEach((rowNumber, index) => sheet.getRange(rowNumber, 1, 1, 9).setValues([[rows[index].game_id, rows[index].date, rows[index].player_id, rows[index].player_name, rows[index].score, rows[index].rank, rows[index].seat_order, rows[index].yakitori, rows[index].point]]));
+  return jsonResponse_({ ok: true, game_id: gameId, results: rows });
 }
 
 function buildPayload_() {
@@ -159,12 +175,12 @@ function calculatePoints_(results) {
   results.forEach(result => { if (!games[result.game_id]) games[result.game_id] = []; games[result.game_id].push(result); });
   Object.keys(games).forEach(gameId => {
     const game = games[gameId];
-    const tiedRanks = {};
-    game.forEach(result => { if (!tiedRanks[result.rank]) tiedRanks[result.rank] = []; tiedRanks[result.rank].push(result); });
-    Object.keys(tiedRanks).forEach(rankKey => {
-      const tied = tiedRanks[rankKey];
-      const rank = Number(rankKey);
-      const occupiedBonus = tied.reduce((sum, result) => sum + CONFIG.RANK_BONUS[result.rank], 0);
+    const tiedGroups = {};
+    game.forEach(result => { const key = String(result.score); if (!tiedGroups[key]) tiedGroups[key] = []; tiedGroups[key].push(result); });
+    Object.keys(tiedGroups).forEach(scoreKey => {
+      const tied = tiedGroups[scoreKey];
+      const rank = 1 + game.filter(result => result.score > Number(scoreKey)).length;
+      const occupiedBonus = tied.reduce((sum, result, index) => sum + (CONFIG.RANK_BONUS[rank + index] || 0), 0);
       const bonusParts = distributeTenths_(occupiedBonus / tied.length, tied);
       tied.forEach((result, index) => {
         const base = (result.score - 30000) / 1000;

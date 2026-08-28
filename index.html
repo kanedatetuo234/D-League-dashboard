@@ -15,15 +15,16 @@
 <body>
   <div class="app-shell">
     <header class="site-header">
-      <div>
+      <div class="brand-block">
+        <img class="site-logo" src="assets/d-league-logo.png" alt="D-League ロゴ">
         <p class="eyebrow">D-LEAGUE / MAHJONG STATS</p>
         <h1>D-League 戦績表</h1>
       </div>
       <div class="header-meta">
         <div class="period-tabs" aria-label="表示期間">
-          <button class="period-tab is-active" data-period="week">週間</button>
+          <button class="period-tab" data-period="week">週間</button>
           <button class="period-tab" data-period="month">月間</button>
-          <button class="period-tab" data-period="year">年間</button>
+          <button class="period-tab is-active" data-period="year">年間</button>
         </div>
         <p>最終更新：<time id="updated-at">2026/08/25 15:00</time></p>
         <p class="connection-status"><span class="status-dot"></span>データ更新：Googleスプレッドシート連携中</p>
@@ -53,9 +54,8 @@
         </article>
 
         <article class="panel chart-panel">
-          <div class="panel-heading"><div><p class="section-kicker">POINT HISTORY</p><h2>累計ポイント推移</h2></div><span class="panel-note">ダミーデータ</span></div>
+          <div class="panel-heading"><div><p class="section-kicker">POINT HISTORY</p><h2>累計ポイント推移</h2></div><span class="panel-note">実績データ</span></div>
           <div class="chart-canvas-wrap"><canvas id="point-history-chart" aria-label="メンバー別の累計ポイント推移"></canvas></div>
-          <div class="legend"><span><i class="pink"></i>内村</span><span><i class="blue"></i>A</span><span><i class="green"></i>B</span><span><i class="gold"></i>C</span></div>
         </article>
 
         <article class="panel period-ranking-panel"><div class="panel-heading"><div><p class="section-kicker">PERIOD RANKING</p><h2 id="period-ranking-title">週間ランキング</h2></div></div><div id="period-ranking-list" class="mini-ranking"></div></article>
@@ -71,9 +71,10 @@
       <form id="entry-form" method="dialog">
         <div class="dialog-heading"><div><p class="section-kicker">MATCH ENTRY</p><h2>対局を登録</h2></div><button id="close-entry" class="dialog-close" type="button" aria-label="閉じる">×</button></div>
         <label class="form-field">対局日<input id="entry-date" type="date" required></label>
+        <input id="entry-game-id" type="hidden">
         <div id="entry-players" class="entry-players"></div>
         <p id="entry-message" class="entry-message" role="alert"></p>
-        <div class="dialog-actions"><button id="cancel-entry" class="secondary-button" type="button">キャンセル</button><button class="primary-button" type="submit">登録する</button></div>
+        <div class="dialog-actions"><button id="cancel-entry" class="secondary-button" type="button">キャンセル</button><button id="entry-submit" class="primary-button" type="submit">登録する</button></div>
       </form>
     </dialog>
     <dialog id="member-dialog" class="entry-dialog member-dialog">
@@ -81,11 +82,12 @@
         <div class="dialog-heading"><div><p class="section-kicker">MEMBER ENTRY</p><h2>メンバー登録</h2></div><button id="close-member" class="dialog-close" type="button" aria-label="閉じる">×</button></div>
         <label class="form-field">表示名<input id="member-name" type="text" maxlength="30" required placeholder="例：内村"></label>
         <label class="form-field">グラフ色（任意）<input id="member-color" type="text" placeholder="#ff4f91"></label>
+        <label class="form-field">アイコン（任意）<input id="member-icon" type="text" maxlength="4" placeholder="例：🀄"></label>
         <p id="member-message" class="entry-message" role="alert"></p>
         <div class="dialog-actions"><button id="cancel-member" class="secondary-button" type="button">キャンセル</button><button class="primary-button" type="submit">登録する</button></div>
       </form>
     </dialog>
-    <footer><span>D-LEAGUE STATS / v1.0 MOCKUP</span><span>Powered by Google Sheets</span></footer>
+    <footer><span>D-LEAGUE STATS / v1.0</span><span>Powered by Google Sheets</span></footer>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="js/stats.js"></script>
