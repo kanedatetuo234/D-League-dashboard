@@ -34,6 +34,7 @@ function doPost(e) {
   try {
     const input = JSON.parse(e.postData.contents || '{}');
     if (input.action === 'addMember') return addMember_(input);
+    if (input.action === 'updateMember') return updateMember_(input);
     if (input.action === 'updateGame') return updateGame_(input);
     const rows = createResultRows_(input);
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.RESULTS_SHEET);
@@ -57,6 +58,22 @@ function addMember_(input) {
   const id = `P${String(new Date().getTime()).slice(-6)}`;
   sheet.appendRow([id, name, true, String(input.color || '').trim(), String(input.icon || '').trim()]);
   return jsonResponse_({ ok: true, member: { player_id: id, display_name: name, active: true } });
+}
+
+function updateMember_(input) {
+  const id = String(input.player_id || '').trim();
+  const name = String(input.display_name || '').trim();
+  if (!id || !name) throw new Error('メンバーIDと表示名を確認してください。');
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = spreadsheet.getSheetByName(CONFIG.MEMBERS_SHEET);
+  if (!sheet) throw new Error(`Sheet not found: ${CONFIG.MEMBERS_SHEET}`);
+  const values = sheet.getDataRange().getValues();
+  const rowIndex = values.slice(1).findIndex(row => String(row[0]).trim() === id);
+  if (rowIndex < 0) throw new Error('対象メンバーが見つかりません。');
+  if (values.slice(1).some((row, index) => index !== rowIndex && String(row[1]).trim() === name)) throw new Error('同じ表示名のメンバーが既に存在します。');
+  const rowNumber = rowIndex + 2;
+  sheet.getRange(rowNumber, 2, 1, 4).setValues([[name, parseBoolean_(input.active), String(input.color || '').trim(), String(input.icon || '').trim()]]);
+  return jsonResponse_({ ok: true, member: { player_id: id, display_name: name, active: parseBoolean_(input.active), color: String(input.color || '').trim(), icon: String(input.icon || '').trim() } });
 }
 
 function createResultRows_(input) {

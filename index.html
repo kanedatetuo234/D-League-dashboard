@@ -79,10 +79,11 @@
     </dialog>
     <dialog id="member-dialog" class="entry-dialog member-dialog">
       <form id="member-form" method="dialog">
-        <div class="dialog-heading"><div><p class="section-kicker">MEMBER ENTRY</p><h2>メンバー登録</h2></div><button id="close-member" class="dialog-close" type="button" aria-label="閉じる">×</button></div>
+        <div class="dialog-heading"><div><p class="section-kicker">MEMBER MASTER</p><h2>メンバー管理</h2></div><button id="close-member" class="dialog-close" type="button" aria-label="閉じる">×</button></div>
         <label class="form-field">表示名<input id="member-name" type="text" maxlength="30" required placeholder="例：内村"></label>
         <label class="form-field">グラフ色（任意）<input id="member-color" type="text" placeholder="#ff4f91"></label>
         <label class="form-field">アイコン（任意）<input id="member-icon" type="text" maxlength="4" placeholder="例：🀄"></label>
+        <p class="member-master-title">登録済みメンバー</p><div id="member-master-list" class="member-master-list"></div>
         <p id="member-message" class="entry-message" role="alert"></p>
         <div class="dialog-actions"><button id="cancel-member" class="secondary-button" type="button">キャンセル</button><button class="primary-button" type="submit">登録する</button></div>
       </form>
