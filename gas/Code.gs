@@ -34,6 +34,7 @@ function doPost(e) {
   try {
     const input = JSON.parse(e.postData.contents || '{}');
     if (input.action === 'addMember') return addMember_(input);
+    if (input.action === 'saveSchedule') return saveSchedule_(input);
     if (input.action === 'updateMember') return updateMember_(input);
     if (input.action === 'updateGame') return updateGame_(input);
     const rows = createResultRows_(input);
@@ -126,8 +127,34 @@ function buildPayload_() {
     updatedAt: Utilities.formatDate(new Date(), CONFIG.TIME_ZONE, "yyyy-MM-dd'T'HH:mm:ssXXX"),
     members: members.filter(member => member.player_id),
     results,
+    schedule: readSchedule_(),
     warnings: validation.warnings,
   };
+}
+
+function saveSchedule_(input) {
+  const date = formatDate_(input.date);
+  const playerId = String(input.player_id || '').trim();
+  if (!date || !playerId) throw new Error('メンバーと日付を確認してください。');
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = spreadsheet.getSheetByName('schedule') || spreadsheet.insertSheet('schedule');
+  ensureHeaders_(sheet, ['date', 'player_id', 'available', 'comment', 'updated_at']);
+  const values = sheet.getDataRange().getValues();
+  const rowIndex = values.slice(1).findIndex(row => String(row[0]).trim() === date && String(row[1]).trim() === playerId);
+  const row = [date, playerId, parseBoolean_(input.available), String(input.comment || '').trim(), new Date()];
+  if (rowIndex >= 0) sheet.getRange(rowIndex + 2, 1, 1, row.length).setValues([row]); else sheet.appendRow(row);
+  return jsonResponse_({ ok: true, schedule: row });
+}
+
+function readSchedule_() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('schedule');
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  return readSheet_(SpreadsheetApp.getActiveSpreadsheet(), 'schedule').map(row => ({ date: formatDate_(row.date), player_id: String(row.player_id || '').trim(), available: parseBoolean_(row.available), comment: String(row.comment || '').trim() }));
+}
+
+function ensureHeaders_(sheet, headers) {
+  const current = sheet.getLastColumn() ? sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(value => String(value).trim()) : [];
+  headers.forEach(header => { if (!current.includes(header)) { sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header); current.push(header); } });
 }
 
 function readSheet_(spreadsheet, sheetName) {

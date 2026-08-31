@@ -41,6 +41,8 @@
         <button class="period-nav" aria-label="次の期間">›</button>
       </section>
 
+      <section class="next-match-panel" aria-label="次回対局候補"><div class="panel-heading"><div><p class="section-kicker">NEXT MATCH DAY</p><h2>次回対局候補</h2></div><button id="open-schedule" class="schedule-button" type="button">参加可能日を入力</button></div><div class="next-match-columns"><div><h3>週間候補</h3><div id="weekly-candidates" class="candidate-list"></div></div><div><h3>月間候補</h3><div id="monthly-candidates" class="candidate-list"></div></div></div></section>
+
       <section class="kpi-grid" aria-label="主要指標">
         <article class="kpi-card"><span class="kpi-label">総対局数</span><strong id="kpi-games">24</strong><span class="kpi-sub">半荘</span></article>
         <article class="kpi-card accent"><span class="kpi-label">前戦のトップ</span><strong id="kpi-last-top">—</strong><span class="kpi-sub">最新の対局</span></article>
@@ -89,6 +91,7 @@
         <div class="dialog-actions"><button id="cancel-member" class="secondary-button" type="button">キャンセル</button><button class="primary-button" type="submit">登録する</button></div>
       </form>
     </dialog>
+    <dialog id="schedule-dialog" class="entry-dialog schedule-dialog"><form id="schedule-form" method="dialog"><div class="dialog-heading"><div><p class="section-kicker">SCHEDULE</p><h2>参加可能日を入力</h2></div><button id="close-schedule" class="dialog-close" type="button" aria-label="閉じる">×</button></div><label class="form-field">メンバー<select id="schedule-player" required></select></label><label class="form-field">日付<input id="schedule-date" type="date" required></label><label class="check-field"><input id="schedule-available" type="checkbox" checked> 参加可能</label><label class="form-field">メモ（任意）<textarea id="schedule-comment" maxlength="100" rows="2"></textarea></label><p id="schedule-message" class="entry-message" role="alert"></p><div class="dialog-actions"><button id="cancel-schedule" class="secondary-button" type="button">キャンセル</button><button class="primary-button" type="submit">保存する</button></div></form></dialog>
     <footer><span>D-LEAGUE STATS / v1.0</span><span>Powered by Google Sheets</span></footer>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>

@@ -20,7 +20,7 @@
       if (!response.ok) throw new Error(`API request failed: ${response.status}`);
       const payload = await response.json();
       if (!Array.isArray(payload.members) || !Array.isArray(payload.results)) throw new Error('API response format is invalid.');
-      return { updatedAt: payload.updatedAt || '', warnings: Array.isArray(payload.warnings) ? payload.warnings : [], members: payload.members.map(normalizeMember), results: payload.results.map(normalizeResult) };
+      return { updatedAt: payload.updatedAt || '', warnings: Array.isArray(payload.warnings) ? payload.warnings : [], members: payload.members.map(normalizeMember), results: payload.results.map(normalizeResult), schedule: Array.isArray(payload.schedule) ? payload.schedule : [] };
     } finally { clearTimeout(timer); }
   }
   async function loadData(fallback) { return CONFIG.URL ? fetchData() : fallback; }
