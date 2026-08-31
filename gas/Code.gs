@@ -41,7 +41,8 @@ function doPost(e) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.RESULTS_SHEET);
     if (!sheet) throw new Error(`Sheet not found: ${CONFIG.RESULTS_SHEET}`);
     ensureResultHeaders_(sheet);
-    rows.forEach(row => sheet.appendRow([row.game_id, row.date, row.player_id, row.player_name, row.score, row.rank, row.seat_order, row.yakitori, row.point, row.yakuman, row.comment]));
+    const photos = uploadPhotos_(input.photos || []);
+    rows.forEach(row => sheet.appendRow([row.game_id, row.date, row.player_id, row.player_name, row.score, row.rank, row.seat_order, row.yakitori, row.point, row.yakuman, row.comment, JSON.stringify(photos.urls), JSON.stringify(photos.fileIds)]));
     return jsonResponse_({ ok: true, game_id: rows[0].game_id, results: rows });
   } catch (error) {
     console.error(error && error.stack ? error.stack : error);
@@ -113,7 +114,12 @@ function updateGame_(input) {
   values.slice(1).forEach((row, index) => { if (String(row[0]).trim() === gameId) targetRows.push(index + 2); });
   if (targetRows.length !== 4) throw new Error('修正対象の対局データが4人分見つかりません。');
   ensureResultHeaders_(sheet);
-  targetRows.sort((a, b) => a - b).forEach((rowNumber, index) => sheet.getRange(rowNumber, 1, 1, 11).setValues([[rows[index].game_id, rows[index].date, rows[index].player_id, rows[index].player_name, rows[index].score, rows[index].rank, rows[index].seat_order, rows[index].yakitori, rows[index].point, rows[index].yakuman, rows[index].comment]]));
+  const photos = uploadPhotos_(input.photos || []);
+  const oldUrls = parseJsonArray_(values[targetRows[0] - 1][11]); const oldIds = parseJsonArray_(values[targetRows[0] - 1][12]);
+  const keptIds = Array.isArray(input.keep_photo_file_ids) ? input.keep_photo_file_ids.map(String) : oldIds;
+  const kept = keptIds.map(id => { const index = oldIds.indexOf(id); return index >= 0 ? { id, url: oldUrls[index] } : null; }).filter(Boolean);
+  const allUrls = kept.map(photo => photo.url).concat(photos.urls); const allIds = kept.map(photo => photo.id).concat(photos.fileIds);
+  targetRows.sort((a, b) => a - b).forEach((rowNumber, index) => sheet.getRange(rowNumber, 1, 1, 13).setValues([[rows[index].game_id, rows[index].date, rows[index].player_id, rows[index].player_name, rows[index].score, rows[index].rank, rows[index].seat_order, rows[index].yakitori, rows[index].point, rows[index].yakuman, rows[index].comment, JSON.stringify(allUrls), JSON.stringify(allIds)]]));
   return jsonResponse_({ ok: true, game_id: gameId, results: rows });
 }
 
@@ -138,10 +144,11 @@ function saveSchedule_(input) {
   if (!date || !playerId) throw new Error('メンバーと日付を確認してください。');
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = spreadsheet.getSheetByName('schedule') || spreadsheet.insertSheet('schedule');
-  ensureHeaders_(sheet, ['date', 'player_id', 'available', 'comment', 'updated_at']);
+  ensureHeaders_(sheet, ['date', 'player_id', 'status', 'comment', 'updated_at']);
   const values = sheet.getDataRange().getValues();
   const rowIndex = values.slice(1).findIndex(row => String(row[0]).trim() === date && String(row[1]).trim() === playerId);
-  const row = [date, playerId, parseBoolean_(input.available), String(input.comment || '').trim(), new Date()];
+  const status = ['○', '△', '×'].includes(String(input.status)) ? String(input.status) : '';
+  const row = [date, playerId, status, String(input.comment || '').trim(), new Date()];
   if (rowIndex >= 0) sheet.getRange(rowIndex + 2, 1, 1, row.length).setValues([row]); else sheet.appendRow(row);
   return jsonResponse_({ ok: true, schedule: row });
 }
@@ -149,7 +156,7 @@ function saveSchedule_(input) {
 function readSchedule_() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('schedule');
   if (!sheet || sheet.getLastRow() < 2) return [];
-  return readSheet_(SpreadsheetApp.getActiveSpreadsheet(), 'schedule').map(row => ({ date: formatDate_(row.date), player_id: String(row.player_id || '').trim(), available: parseBoolean_(row.available), comment: String(row.comment || '').trim() }));
+  return readSheet_(SpreadsheetApp.getActiveSpreadsheet(), 'schedule').map(row => ({ date: formatDate_(row.date), player_id: String(row.player_id || '').trim(), status: String(row.status || '').trim(), available: String(row.status || '').trim() === '○', comment: String(row.comment || '').trim() }));
 }
 
 function ensureHeaders_(sheet, headers) {
@@ -191,12 +198,25 @@ function normalizeResult_(row) {
     point: null,
     yakuman: parseBoolean_(row.yakuman),
     comment: String(row.comment || '').trim(),
+    photo_urls: parseJsonArray_(row.photo_urls),
+    photo_file_ids: parseJsonArray_(row.photo_file_ids),
   };
 }
 
+function parseJsonArray_(value) { try { const parsed = JSON.parse(String(value || '[]')); return Array.isArray(parsed) ? parsed : []; } catch (error) { return []; } }
+
+function uploadPhotos_(photos) {
+  const urls = []; const fileIds = []; if (!Array.isArray(photos) || !photos.length) return { urls, fileIds };
+  const folder = getPhotoFolder_();
+  photos.slice(0, 8).forEach(photo => { const match = String(photo.data || '').match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i); if (!match) return; const blob = Utilities.newBlob(Utilities.base64Decode(match[2]), match[1], String(photo.name || 'winning-tile.jpg')); const file = folder.createFile(blob); file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); urls.push(`https://drive.google.com/thumbnail?id=${file.getId()}&sz=w1000`); fileIds.push(file.getId()); });
+  return { urls, fileIds };
+}
+
+function getPhotoFolder_() { const properties = PropertiesService.getScriptProperties(); const id = properties.getProperty('PHOTO_FOLDER_ID'); if (id) return DriveApp.getFolderById(id); const folder = DriveApp.createFolder('D-League 上がり牌写真'); properties.setProperty('PHOTO_FOLDER_ID', folder.getId()); return folder; }
+
 function ensureResultHeaders_(sheet) {
   const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0].map(value => String(value).trim());
-  ['yakuman', 'comment'].forEach(header => { if (!headers.includes(header)) { sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header); } });
+  ['yakuman', 'comment', 'photo_urls', 'photo_file_ids'].forEach(header => { if (!headers.includes(header)) { sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header); } });
 }
 
 function validateResults_(results) {

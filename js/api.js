@@ -10,7 +10,7 @@
     return { player_id: String(member.player_id || '').trim(), display_name: String(member.display_name || member.player_name || member.player_id || '').trim(), active: member.active !== false, color: member.color || '', icon: member.icon || '' };
   }
   function normalizeResult(result) {
-    return { game_id: String(result.game_id || '').trim(), date: result.date || '', player_id: String(result.player_id || '').trim(), player_name: String(result.player_name || '').trim(), score: Number(result.score) || 0, rank: Number(result.rank) || 0, seat_order: Number(result.seat_order) || 0, yakitori: result.yakitori === true || String(result.yakitori).toLowerCase() === 'true', point: Number(result.point) || 0, yakuman: result.yakuman === true || String(result.yakuman).toLowerCase() === 'true', comment: String(result.comment || '').trim() };
+    return { game_id: String(result.game_id || '').trim(), date: result.date || '', player_id: String(result.player_id || '').trim(), player_name: String(result.player_name || '').trim(), score: Number(result.score) || 0, rank: Number(result.rank) || 0, seat_order: Number(result.seat_order) || 0, yakitori: result.yakitori === true || String(result.yakitori).toLowerCase() === 'true', point: Number(result.point) || 0, yakuman: result.yakuman === true || String(result.yakuman).toLowerCase() === 'true', comment: String(result.comment || '').trim(), photo_urls: Array.isArray(result.photo_urls) ? result.photo_urls : [], photo_file_ids: Array.isArray(result.photo_file_ids) ? result.photo_file_ids : [] };
   }
   async function fetchData(url = CONFIG.URL) {
     if (!url) throw new Error('API URL is not configured.');
