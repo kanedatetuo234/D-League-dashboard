@@ -10,3 +10,4 @@
 @media(max-width:768px){.member-button{width:100%}}
 .kpi-grid{grid-template-columns:repeat(3,1fr)}
 @media(max-width:768px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+.schedule-comment-item{display:inline-block;margin:2px 16px 2px 0;line-height:1.5;white-space:nowrap}.schedule-no-comment{color:var(--muted)}
