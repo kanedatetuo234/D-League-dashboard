@@ -148,7 +148,7 @@ function saveSchedule_(input) {
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(value => String(value).trim());
   const values = sheet.getDataRange().getValues();
   const dateIndex = headers.indexOf('date'); const playerIndex = headers.indexOf('player_id'); const statusIndex = headers.indexOf('status'); const commentIndex = headers.indexOf('comment'); const updatedIndex = headers.indexOf('updated_at');
-  const rowIndex = values.slice(1).findIndex(row => String(row[dateIndex]).trim() === date && String(row[playerIndex]).trim() === playerId);
+  let rowIndex = -1; values.slice(1).forEach((row, index) => { if (formatDate_(row[dateIndex]) === date && String(row[playerIndex]).trim() === playerId) rowIndex = index; });
   const status = ['可', '未定', '不可'].includes(String(input.status)) ? String(input.status) : '';
   const row = values.length ? values[0].map(() => '') : headers.map(() => ''); row[dateIndex] = date; row[playerIndex] = playerId; row[statusIndex] = status; row[commentIndex] = String(input.comment || '').trim(); row[updatedIndex] = new Date();
   if (rowIndex >= 0) sheet.getRange(rowIndex + 2, 1, 1, headers.length).setValues([row]); else sheet.appendRow(row);
@@ -158,7 +158,7 @@ function saveSchedule_(input) {
 function readSchedule_() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('schedule');
   if (!sheet || sheet.getLastRow() < 2) return [];
-  return readSheet_(SpreadsheetApp.getActiveSpreadsheet(), 'schedule').map(row => { const raw = String(row.status || '').trim(); const legacy = String(row.available || '').trim(); const normalize = value => value === '○' || value === '可' || value.toLowerCase() === 'true' ? '可' : value === '△' || value === '未定' ? '未定' : value === '×' || value === '不可' ? '不可' : ''; const status = normalize(raw) || normalize(legacy); return { date: formatDate_(row.date), player_id: String(row.player_id || '').trim(), status, available: status === '可', comment: String(row.comment || '').trim() }; });
+  const latest = new Map(); readSheet_(SpreadsheetApp.getActiveSpreadsheet(), 'schedule').forEach(row => { const date = formatDate_(row.date); const playerId = String(row.player_id || '').trim(); if (!date || !playerId) return; const raw = String(row.status || '').trim(); const legacy = String(row.available || '').trim(); const normalize = value => value === '○' || value === '可' || value.toLowerCase() === 'true' ? '可' : value === '△' || value === '未定' ? '未定' : value === '×' || value === '不可' ? '不可' : ''; const status = normalize(raw) || normalize(legacy); latest.set(`${date}:${playerId}`, { date, player_id: playerId, status, available: status === '可', comment: String(row.comment || '').trim() }); }); return [...latest.values()];
 }
 
 function ensureScheduleHeaders_(sheet) {
