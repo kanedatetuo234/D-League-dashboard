@@ -158,7 +158,7 @@ function saveSchedule_(input) {
 function readSchedule_() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('schedule');
   if (!sheet || sheet.getLastRow() < 2) return [];
-  return readSheet_(SpreadsheetApp.getActiveSpreadsheet(), 'schedule').map(row => { const raw = String(row.status || '').trim(); const status = raw === '○' ? '可' : raw === '△' ? '未定' : raw === '×' ? '不可' : ['可', '未定', '不可'].includes(raw) ? raw : (parseBoolean_(raw) || parseBoolean_(row.available) ? '可' : ''); return { date: formatDate_(row.date), player_id: String(row.player_id || '').trim(), status, available: status === '可', comment: String(row.comment || '').trim() }; });
+  return readSheet_(SpreadsheetApp.getActiveSpreadsheet(), 'schedule').map(row => { const raw = String(row.status || '').trim(); const legacy = String(row.available || '').trim(); const normalize = value => value === '○' || value === '可' || value.toLowerCase() === 'true' ? '可' : value === '△' || value === '未定' ? '未定' : value === '×' || value === '不可' ? '不可' : ''; const status = normalize(raw) || normalize(legacy); return { date: formatDate_(row.date), player_id: String(row.player_id || '').trim(), status, available: status === '可', comment: String(row.comment || '').trim() }; });
 }
 
 function ensureScheduleHeaders_(sheet) {
