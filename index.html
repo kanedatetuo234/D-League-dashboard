@@ -30,6 +30,7 @@
         <p class="connection-status"><span class="status-dot"></span>データ更新：Googleスプレッドシート連携中</p>
         <button id="open-entry" class="entry-button" type="button">＋ 対局を登録</button>
         <button id="open-member" class="member-button" type="button">＋ メンバー登録</button>
+        <button id="open-settings" class="member-button" type="button">⚙ ルール設定</button>
       </div>
     </header>
 
@@ -79,6 +80,23 @@
         <div id="entry-players" class="entry-players"></div>
         <p id="entry-message" class="entry-message" role="alert"></p>
         <div class="dialog-actions"><button id="cancel-entry" class="secondary-button" type="button">キャンセル</button><button id="entry-submit" class="primary-button" type="submit">登録する</button></div>
+      </form>
+    </dialog>
+    <dialog id="settings-dialog" class="entry-dialog settings-dialog">
+      <form id="settings-form" method="dialog">
+        <div class="dialog-heading"><div><p class="section-kicker">LOCAL RULES</p><h2>ローカルルール精算設定</h2></div><button id="close-settings" class="dialog-close" type="button" aria-label="閉じる">×</button></div>
+        <div class="settings-grid">
+          <fieldset><legend>ウマ</legend><label><input id="rule-uma-enabled" type="checkbox"> 有効</label><div class="rule-values"><label>1位<input id="rule-uma-first" type="number" step="0.1"></label><label>2位<input id="rule-uma-second" type="number" step="0.1"></label><label>3位<input id="rule-uma-third" type="number" step="0.1"></label><label>4位<input id="rule-uma-fourth" type="number" step="0.1"></label></div></fieldset>
+          <fieldset><legend>オカ</legend><label><input id="rule-oka-enabled" type="checkbox"> 有効</label><label>加算pt<input id="rule-oka-points" type="number" step="0.1"></label></fieldset>
+          <fieldset><legend>焼き鳥</legend><label><input id="rule-yakitori-enabled" type="checkbox"> 有効</label><label>減算pt<input id="rule-yakitori-points" type="number" step="0.1"></label></fieldset>
+          <fieldset><legend>飛び賞</legend><label><input id="rule-tobiBonus-enabled" type="checkbox"> 有効</label><label>加算pt<input id="rule-tobiBonus-points" type="number" step="0.1"></label></fieldset>
+          <fieldset><legend>トップ賞</legend><label><input id="rule-topBonus-enabled" type="checkbox"> 有効</label><label>加算pt<input id="rule-topBonus-points" type="number" step="0.1"></label></fieldset>
+          <fieldset><legend>ラス罰</legend><label><input id="rule-lastPenalty-enabled" type="checkbox"> 有効</label><label>減算pt<input id="rule-lastPenalty-points" type="number" step="0.1"></label></fieldset>
+          <fieldset><legend>飛び罰</legend><label><input id="rule-tobiPenalty-enabled" type="checkbox"> 有効</label><label>減算pt<input id="rule-tobiPenalty-points" type="number" step="0.1"></label></fieldset>
+          <fieldset><legend>祝儀・チップ</legend><label><input id="rule-chip-enabled" type="checkbox"> 有効</label><label>1枚あたり<input id="rule-chip-pointsPerChip" type="number" step="0.1"></label></fieldset>
+          <fieldset><legend>その他</legend><label><input id="rule-boxBelow-enabled" type="checkbox"> 箱下精算（マイナスをそのまま反映）</label><label>同点処理<select id="rule-tie-method"><option value="split">順位点を按分</option><option value="seat">座順を優先</option><option value="dealer">起家を優先</option></select></label></fieldset>
+        </div>
+        <p id="settings-message" class="entry-message" role="alert"></p><div class="dialog-actions"><button id="cancel-settings" class="secondary-button" type="button">キャンセル</button><button class="primary-button" type="submit">設定を保存</button></div>
       </form>
     </dialog>
     <dialog id="member-dialog" class="entry-dialog member-dialog">

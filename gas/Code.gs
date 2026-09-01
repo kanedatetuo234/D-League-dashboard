@@ -8,10 +8,20 @@
 const CONFIG = {
   RESULTS_SHEET: 'results',
   MEMBERS_SHEET: 'members',
+  SETTINGS_SHEET: 'settings',
   TIME_ZONE: 'Asia/Tokyo',
-  RANK_BONUS: { 1: 10, 2: 6, 3: 3, 4: 0 },
-  OMA: 20,
-  YAKITORI_PENALTY: 20,
+  DEFAULT_SETTINGS: {
+    uma: { enabled: true, first: 10, second: 6, third: 3, fourth: 0 },
+    oka: { enabled: true, points: 20 },
+    yakitori: { enabled: true, points: -20 },
+    tobiBonus: { enabled: false, points: 10 },
+    topBonus: { enabled: false, points: 10 },
+    lastPenalty: { enabled: false, points: -10 },
+    tobiPenalty: { enabled: false, points: -10 },
+    chip: { enabled: false, pointsPerChip: 1 },
+    boxBelow: { enabled: true },
+    tie: { enabled: true, method: 'split' },
+  },
 };
 
 function doGet() {
@@ -24,6 +34,7 @@ function doGet() {
       updatedAt: new Date().toISOString(),
       members: [],
       results: [],
+      settings: CONFIG.DEFAULT_SETTINGS,
       warnings: [],
       error: '戦績データを取得できませんでした。',
     });
@@ -37,12 +48,14 @@ function doPost(e) {
     if (input.action === 'saveSchedule') return saveSchedule_(input);
     if (input.action === 'updateMember') return updateMember_(input);
     if (input.action === 'updateGame') return updateGame_(input);
+    if (input.action === 'saveSettings') return saveSettings_(input.settings || {});
     const rows = createResultRows_(input);
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.RESULTS_SHEET);
     if (!sheet) throw new Error(`Sheet not found: ${CONFIG.RESULTS_SHEET}`);
     ensureResultHeaders_(sheet);
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(value => String(value).trim());
     const photos = uploadPhotos_(input.photos || []);
-    rows.forEach(row => sheet.appendRow([row.game_id, row.date, row.player_id, row.player_name, row.score, row.rank, row.seat_order, row.yakitori, row.point, row.yakuman, row.comment, JSON.stringify(photos.urls), JSON.stringify(photos.fileIds)]));
+    rows.forEach(row => sheet.appendRow(resultRow_(row, photos, headers)));
     return jsonResponse_({ ok: true, game_id: rows[0].game_id, results: rows });
   } catch (error) {
     console.error(error && error.stack ? error.stack : error);
@@ -87,6 +100,7 @@ function createResultRows_(input) {
     score: toNumber_(player.score),
     seat_order: toNumber_(player.seat_order),
     yakitori: parseBoolean_(player.yakitori),
+    chips: toNumber_(player.chips),
     yakuman: parseBoolean_(input.yakuman),
     comment: String(input.comment || '').trim(),
   }));
@@ -119,7 +133,8 @@ function updateGame_(input) {
   const keptIds = Array.isArray(input.keep_photo_file_ids) ? input.keep_photo_file_ids.map(String) : oldIds;
   const kept = keptIds.map(id => { const index = oldIds.indexOf(id); return index >= 0 ? { id, url: oldUrls[index] } : null; }).filter(Boolean);
   const allUrls = kept.map(photo => photo.url).concat(photos.urls); const allIds = kept.map(photo => photo.id).concat(photos.fileIds);
-  targetRows.sort((a, b) => a - b).forEach((rowNumber, index) => sheet.getRange(rowNumber, 1, 1, 13).setValues([[rows[index].game_id, rows[index].date, rows[index].player_id, rows[index].player_name, rows[index].score, rows[index].rank, rows[index].seat_order, rows[index].yakitori, rows[index].point, rows[index].yakuman, rows[index].comment, JSON.stringify(allUrls), JSON.stringify(allIds)]]));
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(value => String(value).trim());
+  targetRows.sort((a, b) => a - b).forEach((rowNumber, index) => sheet.getRange(rowNumber, 1, 1, headers.length).setValues([resultRow_(rows[index], { urls: allUrls, fileIds: allIds }, headers)]));
   return jsonResponse_({ ok: true, game_id: gameId, results: rows });
 }
 
@@ -128,14 +143,53 @@ function buildPayload_() {
   const members = readSheet_(spreadsheet, CONFIG.MEMBERS_SHEET).map(normalizeMember_);
   const rawResults = readSheet_(spreadsheet, CONFIG.RESULTS_SHEET).map(normalizeResult_);
   const validation = validateResults_(rawResults);
-  const results = calculatePoints_(rawResults);
+  const settings = readSettings_();
+  const results = calculatePoints_(rawResults, settings);
   return {
     updatedAt: Utilities.formatDate(new Date(), CONFIG.TIME_ZONE, "yyyy-MM-dd'T'HH:mm:ssXXX"),
     members: members.filter(member => member.player_id),
     results,
+    settings,
     schedule: readSchedule_(),
     warnings: validation.warnings,
   };
+}
+
+function saveSettings_(input) {
+  const settings = mergeSettings_(input);
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = spreadsheet.getSheetByName(CONFIG.SETTINGS_SHEET) || spreadsheet.insertSheet(CONFIG.SETTINGS_SHEET);
+  sheet.clearContents();
+  sheet.getRange(1, 1, 1, 2).setValues([['key', 'value']]);
+  sheet.getRange(2, 1, 1, 2).setValues([['settings', JSON.stringify(settings)]]);
+  return jsonResponse_({ ok: true, settings });
+}
+
+function readSettings_() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SETTINGS_SHEET);
+  if (!sheet || sheet.getLastRow() < 2) return mergeSettings_({});
+  const rows = readSheet_(SpreadsheetApp.getActiveSpreadsheet(), CONFIG.SETTINGS_SHEET);
+  const row = rows.find(item => String(item.key || '').trim() === 'settings');
+  if (!row) return mergeSettings_({});
+  try { return mergeSettings_(JSON.parse(String(row.value || '{}'))); } catch (error) { return mergeSettings_({}); }
+}
+
+function mergeSettings_(input) {
+  const defaults = CONFIG.DEFAULT_SETTINGS;
+  const source = input && typeof input === 'object' ? input : {};
+  const result = {};
+  Object.keys(defaults).forEach(key => {
+    result[key] = Object.assign({}, defaults[key], source[key] && typeof source[key] === 'object' ? source[key] : {});
+    if ('enabled' in defaults[key]) result[key].enabled = parseBoolean_(result[key].enabled);
+    Object.keys(result[key]).forEach(field => { if (field !== 'enabled' && field !== 'method') result[key][field] = toNumber_(result[key][field]); });
+  });
+  result.tie.method = ['split', 'seat', 'dealer'].includes(String(result.tie.method)) ? String(result.tie.method) : 'split';
+  return result;
+}
+
+function resultRow_(row, photos, headers) {
+  const values = { game_id: row.game_id, date: row.date, player_id: row.player_id, player_name: row.player_name, score: row.score, rank: row.rank, seat_order: row.seat_order, yakitori: row.yakitori, point: row.point, yakuman: row.yakuman, comment: row.comment, chips: row.chips || 0, photo_urls: JSON.stringify(photos.urls), photo_file_ids: JSON.stringify(photos.fileIds), point_breakdown: JSON.stringify(row.breakdown || {}) };
+  return headers.map(header => values[header] === undefined ? '' : values[header]);
 }
 
 function saveSchedule_(input) {
@@ -208,12 +262,16 @@ function normalizeResult_(row) {
     point: null,
     yakuman: parseBoolean_(row.yakuman),
     comment: String(row.comment || '').trim(),
+    chips: toNumber_(row.chips),
     photo_urls: parseJsonArray_(row.photo_urls),
     photo_file_ids: parseJsonArray_(row.photo_file_ids),
+    breakdown: parseJsonObject_(row.point_breakdown),
+    breakdown: parseJsonObject_(row.point_breakdown),
   };
 }
 
 function parseJsonArray_(value) { try { const parsed = JSON.parse(String(value || '[]')); return Array.isArray(parsed) ? parsed : []; } catch (error) { return []; } }
+function parseJsonObject_(value) { try { const parsed = JSON.parse(String(value || '{}')); return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}; } catch (error) { return {}; } }
 
 function uploadPhotos_(photos) {
   const urls = []; const fileIds = []; if (!Array.isArray(photos) || !photos.length) return { urls, fileIds };
@@ -226,7 +284,7 @@ function getPhotoFolder_() { const properties = PropertiesService.getScriptPrope
 
 function ensureResultHeaders_(sheet) {
   const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0].map(value => String(value).trim());
-  ['yakuman', 'comment', 'photo_urls', 'photo_file_ids'].forEach(header => { if (!headers.includes(header)) { sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header); } });
+  ['yakuman', 'comment', 'chips', 'photo_urls', 'photo_file_ids', 'point_breakdown'].forEach(header => { if (!headers.includes(header)) { sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header); } });
 }
 
 function validateResults_(results) {
@@ -255,7 +313,7 @@ function validateResults_(results) {
   return { warnings };
 }
 
-function calculatePoints_(results) {
+function calculatePoints_(results, settings = readSettings_()) {
   const games = {};
   results.forEach(result => { if (!games[result.game_id]) games[result.game_id] = []; games[result.game_id].push(result); });
   Object.keys(games).forEach(gameId => {
@@ -265,13 +323,24 @@ function calculatePoints_(results) {
     Object.keys(tiedGroups).forEach(scoreKey => {
       const tied = tiedGroups[scoreKey];
       const rank = 1 + game.filter(result => result.score > Number(scoreKey)).length;
-      const occupiedBonus = tied.reduce((sum, result, index) => sum + (CONFIG.RANK_BONUS[rank + index] || 0), 0);
+      const rankBonus = settings.uma.enabled ? { 1: settings.uma.first, 2: settings.uma.second, 3: settings.uma.third, 4: settings.uma.fourth } : { 1: 0, 2: 0, 3: 0, 4: 0 };
+      const occupiedBonus = tied.reduce((sum, result, index) => sum + (rankBonus[rank + index] || 0), 0);
       const bonusParts = distributeTenths_(occupiedBonus / tied.length, tied);
       tied.forEach((result, index) => {
-        const base = (result.score - 30000) / 1000;
-        const oma = result.rank === 1 ? CONFIG.OMA : 0;
-        const yakitori = result.yakitori ? CONFIG.YAKITORI_PENALTY : 0;
-        result.point = round1_(base + bonusParts[index] + oma - yakitori);
+        const base = ((settings.boxBelow.enabled ? result.score : Math.max(0, result.score)) - 30000) / 1000;
+        const oma = settings.oka.enabled && result.rank === 1 ? settings.oka.points : 0;
+        const yakitori = settings.yakitori.enabled && result.yakitori ? settings.yakitori.points : 0;
+        const isTop = result.rank === 1;
+        const isLast = result.rank === 4;
+        const isTobi = result.score < 0;
+        const tobiBonus = settings.tobiBonus.enabled && isTop && game.some(other => other.score < 0) ? settings.tobiBonus.points : 0;
+        const topBonus = settings.topBonus.enabled && isTop ? settings.topBonus.points : 0;
+        const lastPenalty = settings.lastPenalty.enabled && isLast ? settings.lastPenalty.points : 0;
+        const tobiPenalty = settings.tobiPenalty.enabled && isTobi ? settings.tobiPenalty.points : 0;
+        const chip = settings.chip.enabled ? (Number(result.chips) || 0) * settings.chip.pointsPerChip : 0;
+        const breakdown = { base: round1_(base), uma: round1_(bonusParts[index]), oka: round1_(oma), yakitori: round1_(yakitori), tobiBonus: round1_(tobiBonus), topBonus: round1_(topBonus), lastPenalty: round1_(lastPenalty), tobiPenalty: round1_(tobiPenalty), chip: round1_(chip) };
+        result.breakdown = breakdown;
+        result.point = round1_(Object.keys(breakdown).reduce((sum, key) => sum + breakdown[key], 0));
       });
     });
   });
