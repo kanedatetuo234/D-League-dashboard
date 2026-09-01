@@ -144,19 +144,29 @@ function saveSchedule_(input) {
   if (!date || !playerId) throw new Error('メンバーと日付を確認してください。');
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = spreadsheet.getSheetByName('schedule') || spreadsheet.insertSheet('schedule');
-  ensureHeaders_(sheet, ['date', 'player_id', 'status', 'comment', 'updated_at']);
+  ensureScheduleHeaders_(sheet);
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(value => String(value).trim());
   const values = sheet.getDataRange().getValues();
-  const rowIndex = values.slice(1).findIndex(row => String(row[0]).trim() === date && String(row[1]).trim() === playerId);
+  const dateIndex = headers.indexOf('date'); const playerIndex = headers.indexOf('player_id'); const statusIndex = headers.indexOf('status'); const commentIndex = headers.indexOf('comment'); const updatedIndex = headers.indexOf('updated_at');
+  const rowIndex = values.slice(1).findIndex(row => String(row[dateIndex]).trim() === date && String(row[playerIndex]).trim() === playerId);
   const status = ['可', '未定', '不可'].includes(String(input.status)) ? String(input.status) : '';
-  const row = [date, playerId, status, String(input.comment || '').trim(), new Date()];
-  if (rowIndex >= 0) sheet.getRange(rowIndex + 2, 1, 1, row.length).setValues([row]); else sheet.appendRow(row);
-  return jsonResponse_({ ok: true, schedule: row });
+  const row = values.length ? values[0].map(() => '') : headers.map(() => ''); row[dateIndex] = date; row[playerIndex] = playerId; row[statusIndex] = status; row[commentIndex] = String(input.comment || '').trim(); row[updatedIndex] = new Date();
+  if (rowIndex >= 0) sheet.getRange(rowIndex + 2, 1, 1, headers.length).setValues([row]); else sheet.appendRow(row);
+  return jsonResponse_({ ok: true, schedule: [date, playerId, status, row[commentIndex], row[updatedIndex]] });
 }
 
 function readSchedule_() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('schedule');
   if (!sheet || sheet.getLastRow() < 2) return [];
-  return readSheet_(SpreadsheetApp.getActiveSpreadsheet(), 'schedule').map(row => { const raw = String(row.status || '').trim(); const status = raw === '○' ? '可' : raw === '△' ? '未定' : raw === '×' ? '不可' : raw || (parseBoolean_(row.available) ? '可' : ''); return { date: formatDate_(row.date), player_id: String(row.player_id || '').trim(), status, available: status === '可', comment: String(row.comment || '').trim() }; });
+  return readSheet_(SpreadsheetApp.getActiveSpreadsheet(), 'schedule').map(row => { const raw = String(row.status || '').trim(); const status = raw === '○' ? '可' : raw === '△' ? '未定' : raw === '×' ? '不可' : ['可', '未定', '不可'].includes(raw) ? raw : (parseBoolean_(raw) || parseBoolean_(row.available) ? '可' : ''); return { date: formatDate_(row.date), player_id: String(row.player_id || '').trim(), status, available: status === '可', comment: String(row.comment || '').trim() }; });
+}
+
+function ensureScheduleHeaders_(sheet) {
+  const lastColumn = sheet.getLastColumn();
+  const headers = lastColumn ? sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(value => String(value).trim()) : [];
+  const availableIndex = headers.indexOf('available'); const statusIndex = headers.indexOf('status');
+  if (availableIndex >= 0 && statusIndex < 0) { sheet.getRange(1, availableIndex + 1).setValue('status'); return; }
+  ensureHeaders_(sheet, ['date', 'player_id', 'status', 'comment', 'updated_at']);
 }
 
 function ensureHeaders_(sheet, headers) {
