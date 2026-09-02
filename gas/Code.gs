@@ -19,6 +19,7 @@ const CONFIG = {
     lastPenalty: { enabled: false, points: -10 },
     tobiPenalty: { enabled: false, points: -10 },
     chip: { enabled: false, pointsPerChip: 1 },
+    returnPoints: { points: 30000 },
     boxBelow: { enabled: true },
     tie: { enabled: true, method: 'split' },
     },
@@ -336,7 +337,8 @@ function calculatePoints_(results, settings = readSettings_()) {
       const occupiedBonus = tied.reduce((sum, result, index) => sum + (rankBonus[rank + index] || 0), 0);
       const bonusParts = distributeTenths_(occupiedBonus / tied.length, tied);
       tied.forEach((result, index) => {
-        const base = ((rules.boxBelow.enabled ? result.score : Math.max(0, result.score)) - 30000) / 1000;
+        const returnPoints = Number(rules.returnPoints?.points) || 30000;
+        const base = ((rules.boxBelow.enabled ? result.score : Math.max(0, result.score)) - returnPoints) / 1000;
         const oma = rules.oka.enabled && result.rank === 1 ? rules.oka.points : 0;
         const yakitori = rules.yakitori.enabled && result.yakitori ? rules.yakitori.points : 0;
         const isTop = result.rank === 1;
