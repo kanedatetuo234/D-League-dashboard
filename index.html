@@ -74,6 +74,7 @@
       <form id="entry-form" method="dialog">
         <div class="dialog-heading"><div><p class="section-kicker">MATCH ENTRY</p><h2>対局を登録</h2></div><button id="close-entry" class="dialog-close" type="button" aria-label="閉じる">×</button></div>
         <label class="form-field">対局日<input id="entry-date" type="date" required></label>
+        <label class="form-field">対局種別<select id="entry-game-type"><option value="hanchan">半荘</option><option value="tonpu">東風</option></select></label>
         <input id="entry-game-id" type="hidden">
         <div class="entry-meta-fields"><label class="check-field"><input id="entry-yakuman" type="checkbox"> 役満あり</label><label class="form-field">対局コメント<textarea id="entry-comment" maxlength="200" rows="2" placeholder="今回の対局メモ（任意）"></textarea></label></div>
         <label class="form-field photo-field">上がり牌の写真（複数可）<input id="entry-photos" type="file" accept="image/*" multiple><small>自動で圧縮して保存します</small></label><div id="entry-photo-preview" class="photo-preview"></div>
@@ -85,7 +86,7 @@
     <dialog id="settings-dialog" class="entry-dialog settings-dialog">
       <form id="settings-form" method="dialog">
         <div class="dialog-heading"><div><p class="section-kicker">LOCAL RULES</p><h2>ローカルルール精算設定</h2></div><button id="close-settings" class="dialog-close" type="button" aria-label="閉じる">×</button></div>
-        <div class="settings-grid">
+        <label class="form-field">設定対象<select id="settings-game-type"><option value="hanchan">半荘</option><option value="tonpu">東風</option></select></label><div class="settings-grid">
           <fieldset><legend>ウマ</legend><label><input id="rule-uma-enabled" type="checkbox"> 有効</label><div class="rule-values"><label>1位<input id="rule-uma-first" type="number" step="0.1"></label><label>2位<input id="rule-uma-second" type="number" step="0.1"></label><label>3位<input id="rule-uma-third" type="number" step="0.1"></label><label>4位<input id="rule-uma-fourth" type="number" step="0.1"></label></div></fieldset>
           <fieldset><legend>オカ</legend><label><input id="rule-oka-enabled" type="checkbox"> 有効</label><label>加算pt<input id="rule-oka-points" type="number" step="0.1"></label></fieldset>
           <fieldset><legend>焼き鳥</legend><label><input id="rule-yakitori-enabled" type="checkbox"> 有効</label><label>減算pt<input id="rule-yakitori-points" type="number" step="0.1"></label></fieldset>

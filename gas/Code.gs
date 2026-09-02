@@ -8,9 +8,9 @@
 const CONFIG = {
   RESULTS_SHEET: 'results',
   MEMBERS_SHEET: 'members',
-  SETTINGS_SHEET: 'settings',
+    SETTINGS_SHEET: 'settings',
   TIME_ZONE: 'Asia/Tokyo',
-  DEFAULT_SETTINGS: {
+    DEFAULT_SETTINGS: {
     uma: { enabled: true, first: 10, second: 6, third: 3, fourth: 0 },
     oka: { enabled: true, points: 20 },
     yakitori: { enabled: true, points: -20 },
@@ -21,7 +21,7 @@ const CONFIG = {
     chip: { enabled: false, pointsPerChip: 1 },
     boxBelow: { enabled: true },
     tie: { enabled: true, method: 'split' },
-  },
+    },
 };
 
 function doGet() {
@@ -103,6 +103,7 @@ function createResultRows_(input) {
     chips: toNumber_(player.chips),
     yakuman: parseBoolean_(input.yakuman),
     comment: String(input.comment || '').trim(),
+    game_type: input.game_type === 'tonpu' ? 'tonpu' : 'hanchan',
   }));
   if (players.some(player => !player.player_id || !isFinite(player.score))) throw new Error('プレイヤー、持ち点を確認してください。');
   if (new Set(players.map(player => player.player_id)).size !== 4) throw new Error('プレイヤーは4人とも別々にしてください。');
@@ -112,7 +113,7 @@ function createResultRows_(input) {
   const date = input.date ? formatDate_(input.date) : Utilities.formatDate(new Date(), CONFIG.TIME_ZONE, 'yyyy-MM-dd');
   const gameId = String(input.game_id || '').trim() || `G${Utilities.formatDate(new Date(), CONFIG.TIME_ZONE, 'yyyyMMddHHmmss')}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
   players.forEach(player => { player.game_id = gameId; player.date = date; });
-  calculatePoints_(players);
+  calculatePoints_(players, readSettings_());
   return players;
 }
 
@@ -175,6 +176,12 @@ function readSettings_() {
 }
 
 function mergeSettings_(input) {
+  if (input && (input.hanchan || input.tonpu)) return { hanchan: mergeRules_(input.hanchan || {}), tonpu: mergeRules_(input.tonpu || {}) };
+  const rules = mergeRules_(input || {});
+  return { hanchan: rules, tonpu: JSON.parse(JSON.stringify(rules)) };
+}
+
+function mergeRules_(input) {
   const defaults = CONFIG.DEFAULT_SETTINGS;
   const source = input && typeof input === 'object' ? input : {};
   const result = {};
@@ -188,7 +195,7 @@ function mergeSettings_(input) {
 }
 
 function resultRow_(row, photos, headers) {
-  const values = { game_id: row.game_id, date: row.date, player_id: row.player_id, player_name: row.player_name, score: row.score, rank: row.rank, seat_order: row.seat_order, yakitori: row.yakitori, point: row.point, yakuman: row.yakuman, comment: row.comment, chips: row.chips || 0, photo_urls: JSON.stringify(photos.urls), photo_file_ids: JSON.stringify(photos.fileIds), point_breakdown: JSON.stringify(row.breakdown || {}) };
+  const values = { game_id: row.game_id, date: row.date, game_type: row.game_type || 'hanchan', player_id: row.player_id, player_name: row.player_name, score: row.score, rank: row.rank, seat_order: row.seat_order, yakitori: row.yakitori, point: row.point, yakuman: row.yakuman, comment: row.comment, chips: row.chips || 0, photo_urls: JSON.stringify(photos.urls), photo_file_ids: JSON.stringify(photos.fileIds), point_breakdown: JSON.stringify(row.breakdown || {}) };
   return headers.map(header => values[header] === undefined ? '' : values[header]);
 }
 
@@ -253,6 +260,7 @@ function normalizeResult_(row) {
   return {
     game_id: String(row.game_id || '').trim(),
     date: formatDate_(row.date),
+    game_type: ['tonpu', '東風'].includes(String(row.game_type || '').trim()) ? 'tonpu' : 'hanchan',
     player_id: String(row.player_id || '').trim(),
     player_name: String(row.player_name || '').trim(),
     score: toNumber_(row.score),
@@ -284,7 +292,7 @@ function getPhotoFolder_() { const properties = PropertiesService.getScriptPrope
 
 function ensureResultHeaders_(sheet) {
   const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0].map(value => String(value).trim());
-  ['yakuman', 'comment', 'chips', 'photo_urls', 'photo_file_ids', 'point_breakdown'].forEach(header => { if (!headers.includes(header)) { sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header); } });
+  ['game_type', 'yakuman', 'comment', 'chips', 'photo_urls', 'photo_file_ids', 'point_breakdown'].forEach(header => { if (!headers.includes(header)) { sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header); } });
 }
 
 function validateResults_(results) {
@@ -318,26 +326,27 @@ function calculatePoints_(results, settings = readSettings_()) {
   results.forEach(result => { if (!games[result.game_id]) games[result.game_id] = []; games[result.game_id].push(result); });
   Object.keys(games).forEach(gameId => {
     const game = games[gameId];
+    const rules = settings[game[0].game_type === 'tonpu' ? 'tonpu' : 'hanchan'] || settings.hanchan || settings;
     const tiedGroups = {};
     game.forEach(result => { const key = String(result.score); if (!tiedGroups[key]) tiedGroups[key] = []; tiedGroups[key].push(result); });
     Object.keys(tiedGroups).forEach(scoreKey => {
       const tied = tiedGroups[scoreKey];
       const rank = 1 + game.filter(result => result.score > Number(scoreKey)).length;
-      const rankBonus = settings.uma.enabled ? { 1: settings.uma.first, 2: settings.uma.second, 3: settings.uma.third, 4: settings.uma.fourth } : { 1: 0, 2: 0, 3: 0, 4: 0 };
+      const rankBonus = rules.uma.enabled ? { 1: rules.uma.first, 2: rules.uma.second, 3: rules.uma.third, 4: rules.uma.fourth } : { 1: 0, 2: 0, 3: 0, 4: 0 };
       const occupiedBonus = tied.reduce((sum, result, index) => sum + (rankBonus[rank + index] || 0), 0);
       const bonusParts = distributeTenths_(occupiedBonus / tied.length, tied);
       tied.forEach((result, index) => {
-        const base = ((settings.boxBelow.enabled ? result.score : Math.max(0, result.score)) - 30000) / 1000;
-        const oma = settings.oka.enabled && result.rank === 1 ? settings.oka.points : 0;
-        const yakitori = settings.yakitori.enabled && result.yakitori ? settings.yakitori.points : 0;
+        const base = ((rules.boxBelow.enabled ? result.score : Math.max(0, result.score)) - 30000) / 1000;
+        const oma = rules.oka.enabled && result.rank === 1 ? rules.oka.points : 0;
+        const yakitori = rules.yakitori.enabled && result.yakitori ? rules.yakitori.points : 0;
         const isTop = result.rank === 1;
         const isLast = result.rank === 4;
         const isTobi = result.score < 0;
-        const tobiBonus = settings.tobiBonus.enabled && isTop && game.some(other => other.score < 0) ? settings.tobiBonus.points : 0;
-        const topBonus = settings.topBonus.enabled && isTop ? settings.topBonus.points : 0;
-        const lastPenalty = settings.lastPenalty.enabled && isLast ? settings.lastPenalty.points : 0;
-        const tobiPenalty = settings.tobiPenalty.enabled && isTobi ? settings.tobiPenalty.points : 0;
-        const chip = settings.chip.enabled ? (Number(result.chips) || 0) * settings.chip.pointsPerChip : 0;
+        const tobiBonus = rules.tobiBonus.enabled && isTop && game.some(other => other.score < 0) ? rules.tobiBonus.points : 0;
+        const topBonus = rules.topBonus.enabled && isTop ? rules.topBonus.points : 0;
+        const lastPenalty = rules.lastPenalty.enabled && isLast ? rules.lastPenalty.points : 0;
+        const tobiPenalty = rules.tobiPenalty.enabled && isTobi ? rules.tobiPenalty.points : 0;
+        const chip = rules.chip.enabled ? (Number(result.chips) || 0) * rules.chip.pointsPerChip : 0;
         const breakdown = { base: round1_(base), uma: round1_(bonusParts[index]), oka: round1_(oma), yakitori: round1_(yakitori), tobiBonus: round1_(tobiBonus), topBonus: round1_(topBonus), lastPenalty: round1_(lastPenalty), tobiPenalty: round1_(tobiPenalty), chip: round1_(chip) };
         result.breakdown = breakdown;
         result.point = round1_(Object.keys(breakdown).reduce((sum, key) => sum + breakdown[key], 0));
