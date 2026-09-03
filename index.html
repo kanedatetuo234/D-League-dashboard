@@ -45,9 +45,9 @@
       <section class="next-match-panel" aria-label="次回対局候補"><div class="panel-heading"><div><p class="section-kicker">NEXT MATCH DAY</p><h2>次回対局候補 <small class="period-caption">今日から7日間</small></h2></div><button id="open-schedule" class="schedule-button" type="button">予定を入力</button></div><div id="schedule-table-wrap" class="table-scroll"></div></section>
 
       <section class="kpi-grid" aria-label="主要指標">
-        <article class="kpi-card"><span class="kpi-label">総対局数</span><strong id="kpi-games">24</strong><span class="kpi-sub">半荘</span></article>
-        <article class="kpi-card accent"><span class="kpi-label">前戦のトップ</span><strong id="kpi-last-top">—</strong><span class="kpi-sub">最新の対局</span></article>
-        <article class="kpi-card"><span class="kpi-label">前々戦のトップ</span><strong id="kpi-previous-top">—</strong><span class="kpi-sub">ひとつ前の対局</span></article>
+        <article class="kpi-card" data-kpi="total"><span class="kpi-label">総対局数</span><strong id="kpi-games">24</strong><span class="kpi-sub">半荘</span></article>
+        <article class="kpi-card accent" data-kpi="last"><span class="kpi-label">前戦のトップ</span><strong id="kpi-last-top">—</strong><span class="kpi-sub">最新の対局</span></article>
+        <article class="kpi-card" data-kpi="previous"><span class="kpi-label">前々戦のトップ</span><strong id="kpi-previous-top">—</strong><span class="kpi-sub">ひとつ前の対局</span></article>
       </section>
 
       <section class="dashboard-grid">
@@ -111,6 +111,7 @@
         <div class="dialog-actions"><button id="cancel-member" class="secondary-button" type="button">キャンセル</button><button class="primary-button" type="submit">登録する</button></div>
       </form>
     </dialog>
+    <dialog id="schedule-detail-dialog" class="entry-dialog schedule-detail-dialog"><div class="dialog-heading"><div><p class="section-kicker">SCHEDULE DETAIL</p><h2 id="schedule-detail-title">日程詳細</h2></div><button id="close-schedule-detail" class="dialog-close" type="button" aria-label="閉じる">×</button></div><div id="schedule-detail-content"></div><div class="dialog-actions"><button id="cancel-schedule-detail" class="secondary-button" type="button">閉じる</button></div></dialog>
     <dialog id="schedule-dialog" class="entry-dialog schedule-dialog"><form id="schedule-form" method="dialog"><div class="dialog-heading"><div><p class="section-kicker">SCHEDULE</p><h2>今日から7日間の予定を入力</h2></div><button id="close-schedule" class="dialog-close" type="button" aria-label="閉じる">×</button></div><label class="form-field">メンバー<select id="schedule-player" required></select></label><input id="schedule-date" type="hidden"><input id="schedule-available" type="hidden"><textarea id="schedule-comment" hidden></textarea><div id="schedule-input-grid" class="schedule-input-grid"></div><p id="schedule-message" class="entry-message" role="alert"></p><div class="dialog-actions"><button id="cancel-schedule" class="secondary-button" type="button">キャンセル</button><button class="primary-button" type="submit">保存する</button></div></form></dialog>
     <footer><span>D-LEAGUE STATS / v1.0</span><span>Powered by Google Sheets</span></footer>
   </div>
