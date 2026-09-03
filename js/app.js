@@ -55,6 +55,47 @@ renderPeriodRanking=function(){$('#period-ranking-list').innerHTML=ranking.lengt
 function scheduleStatus(row){const value=String(row?.status??(row?.available===true?'可':row?.available??'')).trim().toLowerCase();if(value==='可'||value==='○'||value==='true')return '可';if(value==='未定'||value==='△')return '未定';if(value==='不可'||value==='×'||value==='false')return '不可';return '';}
 renderScheduleTable=function(){const active=memberSeed.filter(member=>member.active);const memberMap=new Map(memberSeed.map(member=>[member.player_id,member.display_name]));const today=new Date();today.setHours(0,0,0,0);const dates=Array.from({length:7},(_,i)=>{const d=new Date(today);d.setDate(today.getDate()+i);return localDateKey(d);});const latest=new Map();scheduleRecords.forEach(row=>{const date=String(row.date||'').slice(0,10);if(!date||!row.player_id)return;latest.set(`${date}:${row.player_id}`,{...row,date,status:scheduleStatus(row)});});const count=(date,status)=>active.filter(member=>scheduleStatus(latest.get(`${date}:${member.player_id}`))===status).length;const comments=date=>active.map(member=>latest.get(`${date}:${member.player_id}`)).filter(row=>row?.comment).map(row=>`<div class="schedule-comment-item"><b>${escapeScheduleText(memberMap.get(row.player_id)||row.player_id)}：</b>${escapeScheduleText(row.comment)}</div>`).join('')||'<span class="schedule-no-comment">—</span>';$('#schedule-table-wrap').innerHTML=`<table class="schedule-table"><thead><tr><th>日程</th><th>可</th><th>未定</th><th>不可</th><th>コメント（最新）</th></tr></thead><tbody>${dates.map(date=>{const available=count(date,'可');const allAvailable=active.length>0&&available===active.length;return `<tr class="${allAvailable?'all-available':''}"><th>${date}（${new Date(date+'T00:00:00').toLocaleDateString('ja-JP',{weekday:'short'})}）${allAvailable?'<span class="all-available-badge">4人参加可能</span>':''}</th><td>${available}人</td><td>${count(date,'未定')}人</td><td>${count(date,'不可')}人</td><td>${comments(date)}</td></tr>`;}).join('')}</tbody></table>`;};
 renderCandidates=renderScheduleTable;
+// 前戦・前々戦は同一日複数対局を考慮し、対局IDの登録時刻を優先して統一する。
+function recentGameGroups(){
+  const groups=new Map();
+  activeRecords.forEach((record,index)=>{
+    if(!groups.has(record.game_id))groups.set(record.game_id,{rows:[],lastIndex:index});
+    const group=groups.get(record.game_id);
+    group.rows.push(record);
+    group.lastIndex=index;
+  });
+  const registrationKey=group=>{
+    const match=String(group.rows[0]?.game_id||'').match(/^G(\d{14})(\d{3})/);
+    return match?`${match[1]}${match[2]}`:'';
+  };
+  return [...groups.values()].sort((a,b)=>{
+    const dateOrder=String(b.rows[0]?.date||'').localeCompare(String(a.rows[0]?.date||''));
+    if(dateOrder)return dateOrder;
+    const bKey=registrationKey(b),aKey=registrationKey(a);
+    if(bKey||aKey){const idOrder=bKey.localeCompare(aKey);if(idOrder)return idOrder;}
+    return b.lastIndex-a.lastIndex;
+  });
+}
+getRecentTopNames=function(){const games=recentGameGroups();return [getTopNames(games[0]?.rows||[]),getTopNames(games[1]?.rows||[])];};
+
+// 既存の詳細クリック処理より先に、カードと同じ対局グループを表示する。
+document.addEventListener('DOMContentLoaded',()=>{
+  document.addEventListener('click',event=>{
+    const card=event.target.closest('[data-kpi]');
+    if(!card)return;
+    const type=card.dataset.kpi;
+    if(type==='total')return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const games=recentGameGroups();
+    const game=(type==='last'?games[0]:games[1])?.rows||[];
+    const title=type==='last'?'前戦の対局詳細':'前々戦の対局詳細';
+    const content=game.length?`<p>${escapeScheduleText(game[0].date)}（${game[0].game_type==='tonpu'?'東風':'半荘'}）</p><div class="schedule-detail-list">${game.map(row=>`<div class="schedule-detail-row"><b>${escapeScheduleText(row.player_name||row.player_id)}</b><span>${row.rank}着　${row.point>=0?'+':''}${Number(row.point).toFixed(1)}pt</span></div>`).join('')}</div>`:'<p class="empty-state">対象期間の対局はありません</p>';
+    $('#schedule-detail-title').textContent=title;
+    $('#schedule-detail-content').innerHTML=content;
+    $('#schedule-detail-dialog').showModal();
+  },true);
+});
 document.addEventListener('DOMContentLoaded',()=>{const selector=$('#settings-game-type');if(!selector)return;const keys=['uma','oka','yakitori','tobiBonus','topBonus','lastPenalty','tobiPenalty','chip','returnPoints','boxBelow'];let settingsState={};const field=(key,name)=>$(`#rule-${key}-${name}`);const fill=(rules)=>{keys.forEach(key=>{const value=rules?.[key]||{};const enabled=field(key,'enabled');if(enabled)enabled.checked=value.enabled!==false;Object.keys(value).filter(name=>name!=='enabled').forEach(name=>{const input=field(key,name);if(input)input.value=value[name];});});$('#rule-tie-method').value=rules?.tie?.method||'split';};const collect=()=>{const rules=settingsState[selector.value]||{};keys.forEach(key=>{rules[key]=rules[key]||{};const enabled=field(key,'enabled');if(enabled)rules[key].enabled=enabled.checked;Object.keys(rules[key]).filter(name=>name!=='enabled').forEach(name=>{const input=field(key,name);if(input)rules[key][name]=Number(input.value);});});rules.tie=rules.tie||{};rules.tie.enabled=true;rules.tie.method=$('#rule-tie-method').value;settingsState[selector.value]=rules;return settingsState;};selector.addEventListener('change',()=>fill(settingsState[selector.value]||{}));const button=$('#open-settings');button.addEventListener('click',async()=>{try{const data=await window.DLeagueApi.fetchData();settingsState=data.settings||{};selector.value='hanchan';fill(settingsState.hanchan||{});}catch(error){}});$('#settings-form').addEventListener('submit',async event=>{event.preventDefault();event.stopImmediatePropagation();$('#settings-message').textContent='保存中…';try{const all=collect();await window.DLeagueApi.postResult({action:'saveSettings',settings:all});$('#settings-message').textContent='保存しました。再計算して表示します。';setTimeout(()=>window.location.reload(),500);}catch(error){$('#settings-message').textContent=error.message||'設定を保存できませんでした。';}},true);});
 document.addEventListener('DOMContentLoaded',()=>{const basePostResult=window.DLeagueApi.postResult;window.DLeagueApi.postResult=payload=>basePostResult({...payload,game_type:$('#entry-game-type')?.value||'hanchan'});document.addEventListener('click',event=>{const edit=event.target.closest('[data-edit-game]');if(edit){const game=activeRecords.find(record=>record.game_id===edit.dataset.editGame);if(game)$('#entry-game-type').value=game.game_type||'hanchan';}if(event.target.id==='open-entry')$('#entry-game-type').value='hanchan';});});
 const scheduleTableUnifiedAvailability=renderScheduleTable;
