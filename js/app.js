@@ -55,6 +55,36 @@ renderPeriodRanking=function(){$('#period-ranking-list').innerHTML=ranking.lengt
 function scheduleStatus(row){const value=String(row?.status??(row?.available===true?'可':row?.available??'')).trim().toLowerCase();if(value==='可'||value==='○'||value==='true')return '可';if(value==='未定'||value==='△')return '未定';if(value==='不可'||value==='×'||value==='false')return '不可';return '';}
 renderScheduleTable=function(){const active=memberSeed.filter(member=>member.active);const memberMap=new Map(memberSeed.map(member=>[member.player_id,member.display_name]));const today=new Date();today.setHours(0,0,0,0);const dates=Array.from({length:7},(_,i)=>{const d=new Date(today);d.setDate(today.getDate()+i);return localDateKey(d);});const latest=new Map();scheduleRecords.forEach(row=>{const date=String(row.date||'').slice(0,10);if(!date||!row.player_id)return;latest.set(`${date}:${row.player_id}`,{...row,date,status:scheduleStatus(row)});});const count=(date,status)=>active.filter(member=>scheduleStatus(latest.get(`${date}:${member.player_id}`))===status).length;const comments=date=>active.map(member=>latest.get(`${date}:${member.player_id}`)).filter(row=>row?.comment).map(row=>`<div class="schedule-comment-item"><b>${escapeScheduleText(memberMap.get(row.player_id)||row.player_id)}：</b>${escapeScheduleText(row.comment)}</div>`).join('')||'<span class="schedule-no-comment">—</span>';$('#schedule-table-wrap').innerHTML=`<table class="schedule-table"><thead><tr><th>日程</th><th>可</th><th>未定</th><th>不可</th><th>コメント（最新）</th></tr></thead><tbody>${dates.map(date=>{const available=count(date,'可');const allAvailable=active.length>0&&available===active.length;return `<tr class="${allAvailable?'all-available':''}"><th>${date}（${new Date(date+'T00:00:00').toLocaleDateString('ja-JP',{weekday:'short'})}）${allAvailable?'<span class="all-available-badge">4人参加可能</span>':''}</th><td>${available}人</td><td>${count(date,'未定')}人</td><td>${count(date,'不可')}人</td><td>${comments(date)}</td></tr>`;}).join('')}</tbody></table>`;};
 renderCandidates=renderScheduleTable;
+// 総対局数カードは、集計値ではなく対象期間の対局一覧を表示する。
+document.addEventListener('DOMContentLoaded',()=>{
+  document.addEventListener('click',event=>{
+    const card=event.target.closest('[data-kpi="total"]');
+    if(!card)return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const games=recentGameGroups();
+    const memberName=record=>record.player_name||memberSeed.find(member=>member.player_id===record.player_id)?.display_name||record.player_id;
+    const rows=games.map(group=>{
+      const game=group.rows;
+      const type=game[0]?.game_type==='tonpu'?'東風':'半荘';
+      const players=game.slice().sort((a,b)=>Number(a.rank||99)-Number(b.rank||99)).map(record=>`${escapeScheduleText(memberName(record))} ${record.rank}着 ${Number(record.score||0).toLocaleString()}点 ${Number(record.point||0)>=0?'+':''}${Number(record.point||0).toFixed(1)}pt`).join('<br>');
+      return `<div class="match-history-row"><div class="match-history-heading"><b>${escapeScheduleText(game[0]?.date||'')}</b><span>${type}</span><button type="button" class="secondary-button match-history-edit" data-edit-game="${escapeScheduleText(game[0]?.game_id||'')}">修正</button></div><div class="match-history-players">${players}</div></div>`;
+    }).join('');
+    $('#schedule-detail-title').textContent='対局一覧';
+    $('#schedule-detail-content').innerHTML=rows?`<p class="schedule-detail-filter">対象期間：${games.length}局</p><div class="match-history-list">${rows}</div>`:'<p class="empty-state">対象期間の対局はありません</p>';
+    $('#schedule-detail-dialog').showModal();
+  },true);
+  document.addEventListener('click',event=>{
+    const button=event.target.closest('.match-history-edit');
+    if(!button)return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    $('#schedule-detail-dialog').close();
+    editGame(button.dataset.editGame);
+  },true);
+  const detail=$('#schedule-detail-dialog');
+  if(detail)detail.addEventListener('click',event=>{if(event.target===detail)detail.close();});
+});
 // 前戦・前々戦は同一日複数対局を考慮し、対局IDの登録時刻を優先して統一する。
 function recentGameGroups(){
   const groups=new Map();
