@@ -105,12 +105,12 @@ function createResultRows_(input) {
     yakuman: parseBoolean_(input.yakuman),
     comment: String(input.comment || '').trim(),
     game_type: input.game_type === 'tonpu' ? 'tonpu' : 'hanchan',
+    rank: toNumber_(player.rank),
   }));
   if (players.some(player => !player.player_id || !isFinite(player.score))) throw new Error('プレイヤー、持ち点を確認してください。');
   if (new Set(players.map(player => player.player_id)).size !== 4) throw new Error('プレイヤーは4人とも別々にしてください。');
   if (new Set(players.map(player => player.seat_order)).size !== 4 || players.some(player => player.seat_order < 1 || player.seat_order > 4)) throw new Error('座順は1〜4を重複なく入力してください。');
-  const sortedScores = players.map(player => player.score).sort((a, b) => b - a);
-  players.forEach(player => { player.rank = 1 + sortedScores.filter(score => score > player.score).length; });
+  if (new Set(players.map(player => player.rank)).size !== 4 || players.some(player => player.rank < 1 || player.rank > 4)) throw new Error('順位は1〜4を重複なく入力してください。');
   const date = input.date ? formatDate_(input.date) : Utilities.formatDate(new Date(), CONFIG.TIME_ZONE, 'yyyy-MM-dd');
   const gameId = String(input.game_id || '').trim() || `G${Utilities.formatDate(new Date(), CONFIG.TIME_ZONE, 'yyyyMMddHHmmss')}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
   players.forEach(player => { player.game_id = gameId; player.date = date; });

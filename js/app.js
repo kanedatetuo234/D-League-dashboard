@@ -44,6 +44,49 @@ document.addEventListener('DOMContentLoaded',()=>{const schedulePlayer=$('#sched
 function escapeScheduleText(value){return String(value||'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));}
 renderScheduleTable=function(){const active=memberSeed.filter(member=>member.active);const memberMap=new Map(memberSeed.map(member=>[member.player_id,member.display_name]));const today=new Date();today.setHours(0,0,0,0);const dates=Array.from({length:7},(_,i)=>{const d=new Date(today);d.setDate(today.getDate()+i);return localDateKey(d);});const get=(date,id)=>{const row=scheduleRecords.find(item=>item.date===date&&item.player_id===id);return row?.status||((row?.available===true)?'可':'');};const count=(date,status)=>active.filter(m=>get(date,m.player_id)===status).length;const comments=date=>scheduleRecords.filter(row=>row.date===date&&row.comment).map(row=>`<div class="schedule-comment-item"><b>${escapeScheduleText(memberMap.get(row.player_id)||row.player_id)}：</b>${escapeScheduleText(row.comment)}</div>`).join('')||'<span class="schedule-no-comment">—</span>';$('#schedule-table-wrap').innerHTML=`<table class="schedule-table"><thead><tr><th>日程</th><th>可</th><th>未定</th><th>不可</th><th>コメント（全件）</th></tr></thead><tbody>${dates.map(date=>`<tr><th>${date}（${new Date(date+'T00:00:00').toLocaleDateString('ja-JP',{weekday:'short'})}）</th><td>${count(date,'可')}人</td><td>${count(date,'未定')}人</td><td>${count(date,'不可')}人</td><td>${comments(date)}</td></tr>`).join('')}</tbody></table>`;};
 renderCandidates = renderScheduleTable;
+// 入力欄は「順位ごと」に固定し、選択肢は対局日の参加可能（可）メンバーに限定する。
+let entryEditRows=[];
+function entryEligibleMembers(date, existingRows=[]){
+  const active=memberSeed.filter(member=>member.active);
+  const availableIds=new Set(scheduleRecords.filter(row=>String(row.date||'').slice(0,10)===date&&scheduleStatus(row)==='可').map(row=>row.player_id));
+  const existingIds=new Set(existingRows.map(row=>row.player_id));
+  return active.filter(member=>availableIds.has(member.player_id)||existingIds.has(member.player_id));
+}
+renderEntryForm=function(){
+  const date=$('#entry-date').value;
+  const members=entryEligibleMembers(date,entryEditRows);
+  const selectedByRank=new Map(entryEditRows.map(row=>[Number(row.rank),row]));
+  $('#entry-players').innerHTML=Array.from({length:4},(_,index)=>{
+    const rank=index+1, current=selectedByRank.get(rank)||{};
+    const options=members.map(member=>`<option value="${escapeScheduleText(member.player_id)}" ${member.player_id===current.player_id?'selected':''}>${escapeScheduleText(member.display_name)}</option>`).join('');
+    return `<div class="entry-player" data-rank="${rank}"><strong>${rank}位</strong><select class="entry-player-id" required><option value="">${members.length?'プレイヤーを選択':'当日の参加可能者なし'}</option>${options}</select><input class="entry-score" type="number" min="-100000" max="100000" step="100" value="${current.score??''}" placeholder="持ち点" required><label class="chips-field"><span>祝儀</span><input class="entry-chips" type="number" min="0" max="99" step="1" value="${current.chips??0}" placeholder="枚数"></label><select class="entry-seat" required aria-label="${rank}位の席順"><option value="">席順</option>${[1,2,3,4].map(seat=>`<option value="${seat}" ${Number(current.seat_order)===seat?'selected':''}>${seat}番</option>`).join('')}</select><label class="yakitori-field"><input class="entry-yakitori" type="checkbox" ${current.yakitori?'checked':''}>焼き鳥</label></div>`;
+  }).join('');
+  const message=$('#entry-message');
+  if(message)message.textContent=members.length?'':'対局日のスケジュールで「可」と登録されたメンバーがいません。';
+};
+editGame=function(gameId){
+  const game=activeRecords.filter(record=>record.game_id===gameId).sort((a,b)=>Number(a.rank)-Number(b.rank));
+  if(game.length!==4)return;
+  entryEditRows=game;
+  $('#entry-game-id').value=gameId;$('#entry-date').value=game[0].date;$('#entry-game-type').value=game[0].game_type||'hanchan';$('#entry-yakuman').checked=!!game[0].yakuman;$('#entry-comment').value=game[0].comment||'';$('#entry-submit').textContent='修正を保存';renderEntryForm();$('#entry-dialog').showModal();
+};
+submitEntry=async function(event){
+  event.preventDefault();
+  const rows=[...document.querySelectorAll('.entry-player')];
+  const players=rows.map((row,index)=>{const select=row.querySelector('.entry-player-id');return {rank:index+1,player_id:select.value,player_name:select.options[select.selectedIndex]?.text||'',score:row.querySelector('.entry-score').value,seat_order:row.querySelector('.entry-seat').value,yakitori:row.querySelector('.entry-yakitori').checked,chips:row.querySelector('.entry-chips').value};});
+  if(players.some(player=>!player.player_id)||new Set(players.map(player=>player.player_id)).size!==4||players.some(player=>!player.seat_order)||new Set(players.map(player=>player.seat_order)).size!==4){$('#entry-message').textContent='1位〜4位のプレイヤーと席順を重複なく入力してください。';return;}
+  const gameId=$('#entry-game-id').value;const payload={action:gameId?'updateGame':undefined,game_id:gameId,date:$('#entry-date').value,game_type:$('#entry-game-type').value,yakuman:$('#entry-yakuman').checked,comment:$('#entry-comment').value.trim(),players};$('#entry-message').textContent=gameId?'修正中…':'登録中…';
+  try{await window.DLeagueApi.postResult(payload);$('#entry-message').textContent=gameId?'修正しました。':'登録しました。';setTimeout(()=>window.location.reload(),500);}catch(error){console.error(error);$('#entry-message').textContent=error.message||'保存できませんでした。';}
+};
+document.addEventListener('DOMContentLoaded',()=>{
+  const date=$('#entry-date');
+  if(date)date.addEventListener('change',()=>{if(!$('#entry-game-id').value)entryEditRows=[];renderEntryForm();});
+  const open=$('#open-entry');
+  if(open)open.addEventListener('click',()=>{entryEditRows=[];setTimeout(renderEntryForm,0);});
+  const refreshEntryMembers=()=>{if(scheduleRecords.length&&$('#entry-date')&&!$('#entry-game-id').value)renderEntryForm();};
+  setTimeout(refreshEntryMembers,1500);
+  setTimeout(refreshEntryMembers,3000);
+});
 document.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('[data-kpi]').forEach(card=>card.addEventListener('click',()=>{const type=card.dataset.kpi;const groups=new Map();activeRecords.forEach(row=>{if(!groups.has(row.game_id))groups.set(row.game_id,[]);groups.get(row.game_id).push(row);});const games=[...groups.values()].sort((a,b)=>String(b[0]?.date||'').localeCompare(String(a[0]?.date||'')));let title='対局詳細',content='';if(type==='total'){const hanchan=new Set(activeRecords.filter(row=>row.game_type!=='tonpu').map(row=>row.game_id)).size;const tonpu=new Set(activeRecords.filter(row=>row.game_type==='tonpu').map(row=>row.game_id)).size;title='総対局数の内訳';content=`<p>対象期間：${hanchan+tonpu}局</p><p>半荘：${hanchan}局 ／ 東風：${tonpu}局</p>`;}else{const game=games[type==='last'?0:1]||[];title=type==='last'?'前戦の対局詳細':'前々戦の対局詳細';content=game.length?`<p>${escapeScheduleText(game[0].date)}（${game[0].game_type==='tonpu'?'東風':'半荘'}）</p><div class="schedule-detail-list">${game.map(row=>`<div class="schedule-detail-row"><b>${escapeScheduleText(row.player_name||row.player_id)}</b><span>${row.rank}着　${row.point>=0?'+':''}${Number(row.point).toFixed(1)}pt</span></div>`).join('')}</div>`:'<p class="empty-state">対象期間の対局はありません</p>';}$('#schedule-detail-title').textContent=title;$('#schedule-detail-content').innerHTML=content;$('#schedule-detail-dialog').showModal();}));});
 document.addEventListener('DOMContentLoaded',()=>{const openDetail=(date,status)=>{const latest=new Map();scheduleRecords.forEach(row=>{const key=`${String(row.date||'').slice(0,10)}:${row.player_id}`;latest.set(key,row);});const members=memberSeed.filter(member=>member.active).map(member=>{const row=latest.get(`${date}:${member.player_id}`);return {name:member.display_name,status:scheduleStatus(row)||'未回答',comment:row?.comment||''};});const filtered=status?members.filter(member=>member.status===status):members;$('#schedule-detail-title').textContent=`${date} 詳細`;$('#schedule-detail-content').innerHTML=`<div class="schedule-detail-filter">${status?`状態：<b>${status}</b>`:'全メンバー'}</div><div class="schedule-detail-list">${filtered.length?filtered.map(member=>`<div class="schedule-detail-row"><b>${escapeScheduleText(member.name)}</b><span class="schedule-detail-status status-${member.status}">${escapeScheduleText(member.status)}</span>${member.comment?`<p>${escapeScheduleText(member.comment)}</p>`:''}</div>`).join(''):'<p class="empty-state">該当するメンバーはいません</p>'}</div>`;$('#schedule-detail-dialog').showModal();};document.addEventListener('click',event=>{const cell=event.target.closest('.schedule-table tbody td');const row=event.target.closest('.schedule-table tbody tr');if(!row)return;const date=(row.cells[0]?.textContent||'').slice(0,10);if(cell){const index=Array.from(row.cells).indexOf(cell);if(index===1)openDetail(date,'可');if(index===2)openDetail(date,'未定');if(index===3)openDetail(date,'不可');}else openDetail(date,'');});$('#close-schedule-detail').addEventListener('click',()=>$('#schedule-detail-dialog').close());$('#cancel-schedule-detail').addEventListener('click',()=>$('#schedule-detail-dialog').close());});
 document.addEventListener('DOMContentLoaded',()=>{const timer=setInterval(()=>{const updated=$('#updated-at');if(updated&&updated.textContent.includes('T')){updated.textContent=formatUpdatedAt(updated.textContent);clearInterval(timer);}},50);setTimeout(()=>clearInterval(timer),10000);});
