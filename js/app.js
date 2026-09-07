@@ -56,10 +56,11 @@ renderEntryForm=function(){
   const date=$('#entry-date').value;
   const members=entryEligibleMembers(date,entryEditRows);
   const selectedByRank=new Map(entryEditRows.map(row=>[Number(row.rank),row]));
-  $('#entry-players').innerHTML=Array.from({length:4},(_,index)=>{
+  const header='<div class="entry-player-labels" aria-hidden="true"><span>順位</span><span>プレイヤー</span><span>持ち点</span><span>祝儀枚数</span><span>席順</span><span>焼き鳥</span></div>';
+  $('#entry-players').innerHTML=header+Array.from({length:4},(_,index)=>{
     const rank=index+1, current=selectedByRank.get(rank)||{};
     const options=members.map(member=>`<option value="${escapeScheduleText(member.player_id)}" ${member.player_id===current.player_id?'selected':''}>${escapeScheduleText(member.display_name)}</option>`).join('');
-    return `<div class="entry-player" data-rank="${rank}"><strong>${rank}位</strong><select class="entry-player-id" required><option value="">${members.length?'プレイヤーを選択':'当日の参加可能者なし'}</option>${options}</select><input class="entry-score" type="number" min="-100000" max="100000" step="100" value="${current.score??''}" placeholder="持ち点" required><label class="chips-field"><span>祝儀</span><input class="entry-chips" type="number" min="0" max="99" step="1" value="${current.chips??0}" placeholder="枚数"></label><select class="entry-seat" required aria-label="${rank}位の席順"><option value="">席順</option>${[1,2,3,4].map(seat=>`<option value="${seat}" ${Number(current.seat_order)===seat?'selected':''}>${seat}番</option>`).join('')}</select><label class="yakitori-field"><input class="entry-yakitori" type="checkbox" ${current.yakitori?'checked':''}>焼き鳥</label></div>`;
+    return `<div class="entry-player" data-rank="${rank}"><strong>${rank}位</strong><select class="entry-player-id" required><option value="">${members.length?'プレイヤーを選択':'当日の参加可能者なし'}</option>${options}</select><input class="entry-score" type="number" min="-100000" max="100000" step="100" value="${current.score??''}" placeholder="持ち点" required><input class="entry-chips" type="number" min="0" max="99" step="1" value="${current.chips??0}" placeholder="0" aria-label="${rank}位の祝儀枚数"><select class="entry-seat" required aria-label="${rank}位の席順"><option value="">席順</option>${[1,2,3,4].map(seat=>`<option value="${seat}" ${Number(current.seat_order)===seat?'selected':''}>${seat}番</option>`).join('')}</select><label class="yakitori-field"><input class="entry-yakitori" type="checkbox" ${current.yakitori?'checked':''}>焼き鳥</label></div>`;
   }).join('');
   const message=$('#entry-message');
   if(message)message.textContent=members.length?'':'対局日のスケジュールで「可」と登録されたメンバーがいません。';
