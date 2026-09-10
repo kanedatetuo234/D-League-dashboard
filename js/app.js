@@ -46,6 +46,7 @@ renderScheduleTable=function(){const active=memberSeed.filter(member=>member.act
 renderCandidates = renderScheduleTable;
 // 入力欄は「順位ごと」に固定し、選択肢は対局日の参加可能（可）メンバーに限定する。
 let entryEditRows=[];
+function normalizeSeatLabel(value){const text=String(value??'').trim();return {'1':'東','2':'南','3':'西','4':'北','東':'東','南':'南','西':'西','北':'北'}[text]||'';}
 function entryEligibleMembers(date, existingRows=[]){
   const active=memberSeed.filter(member=>member.active);
   const availableIds=new Set(scheduleRecords.filter(row=>String(row.date||'').slice(0,10)===date&&scheduleStatus(row)==='可').map(row=>row.player_id));
@@ -56,11 +57,13 @@ renderEntryForm=function(){
   const date=$('#entry-date').value;
   const members=entryEligibleMembers(date,entryEditRows);
   const selectedByRank=new Map(entryEditRows.map(row=>[Number(row.rank),row]));
-  const header='<div class="entry-player-labels" aria-hidden="true"><span>順位</span><span>プレイヤー</span><span>持ち点</span><span>祝儀枚数</span><span>席順</span><span>焼き鳥</span></div>';
+  const header='<div class="entry-player-labels" aria-hidden="true"><span>順位</span><span>プレイヤー</span><span>持ち点</span><span>祝儀枚数</span><span></span><span>焼き鳥</span></div>';
   $('#entry-players').innerHTML=header+Array.from({length:4},(_,index)=>{
     const rank=index+1, current=selectedByRank.get(rank)||{};
     const options=members.map(member=>`<option value="${escapeScheduleText(member.player_id)}" ${member.player_id===current.player_id?'selected':''}>${escapeScheduleText(member.display_name)}</option>`).join('');
-    return `<div class="entry-player" data-rank="${rank}"><strong>${rank}位</strong><select class="entry-player-id" required><option value="">${members.length?'プレイヤーを選択':'当日の参加可能者なし'}</option>${options}</select><input class="entry-score" type="number" min="-100000" max="100000" step="100" value="${current.score??''}" placeholder="持ち点" required><input class="entry-chips" type="number" min="0" max="99" step="1" value="${current.chips??0}" placeholder="0" aria-label="${rank}位の祝儀枚数"><select class="entry-seat" required aria-label="${rank}位の席順"><option value="">席順</option>${[1,2,3,4].map(seat=>`<option value="${seat}" ${Number(current.seat_order)===seat?'selected':''}>${seat}番</option>`).join('')}</select><label class="yakitori-field"><input class="entry-yakitori" type="checkbox" ${current.yakitori?'checked':''}>焼き鳥</label></div>`;
+    const seats=['東','南','西','北'];
+    const currentSeat=normalizeSeatLabel(current.seat_order)||seats[index];
+    return `<div class="entry-player" data-rank="${rank}"><strong>${rank}位</strong><select class="entry-player-id" required><option value="">${members.length?'プレイヤーを選択':'当日の参加可能者なし'}</option>${options}</select><input class="entry-score" type="number" min="-100000" max="100000" step="100" value="${current.score??''}" placeholder="持ち点" required><input class="entry-chips" type="number" min="0" max="99" step="1" value="${current.chips??0}" placeholder="0" aria-label="${rank}位の祝儀枚数"><select class="entry-seat" required aria-label="${rank}位の席"><option value="東" ${currentSeat==='東'?'selected':''}>東</option><option value="南" ${currentSeat==='南'?'selected':''}>南</option><option value="西" ${currentSeat==='西'?'selected':''}>西</option><option value="北" ${currentSeat==='北'?'selected':''}>北</option></select><label class="yakitori-field"><input class="entry-yakitori" type="checkbox" ${current.yakitori?'checked':''}>焼き鳥</label></div>`;
   }).join('');
   const message=$('#entry-message');
   if(message)message.textContent=members.length?'':'対局日のスケジュールで「可」と登録されたメンバーがいません。';
@@ -75,7 +78,7 @@ submitEntry=async function(event){
   event.preventDefault();
   const rows=[...document.querySelectorAll('.entry-player')];
   const players=rows.map((row,index)=>{const select=row.querySelector('.entry-player-id');return {rank:index+1,player_id:select.value,player_name:select.options[select.selectedIndex]?.text||'',score:row.querySelector('.entry-score').value,seat_order:row.querySelector('.entry-seat').value,yakitori:row.querySelector('.entry-yakitori').checked,chips:row.querySelector('.entry-chips').value};});
-  if(players.some(player=>!player.player_id)||new Set(players.map(player=>player.player_id)).size!==4||players.some(player=>!player.seat_order)||new Set(players.map(player=>player.seat_order)).size!==4){$('#entry-message').textContent='1位〜4位のプレイヤーと席順を重複なく入力してください。';return;}
+  if(players.some(player=>!player.player_id)||new Set(players.map(player=>player.player_id)).size!==4||players.some(player=>!player.seat_order)||new Set(players.map(player=>player.seat_order)).size!==4){$('#entry-message').textContent='1位〜4位のプレイヤーと東南西北を重複なく入力してください。';return;}
   const gameId=$('#entry-game-id').value;const payload={action:gameId?'updateGame':undefined,game_id:gameId,date:$('#entry-date').value,game_type:$('#entry-game-type').value,yakuman:$('#entry-yakuman').checked,comment:$('#entry-comment').value.trim(),players};$('#entry-message').textContent=gameId?'修正中…':'登録中…';
   try{await window.DLeagueApi.postResult(payload);$('#entry-message').textContent=gameId?'修正しました。':'登録しました。';setTimeout(()=>window.location.reload(),500);}catch(error){console.error(error);$('#entry-message').textContent=error.message||'保存できませんでした。';}
 };

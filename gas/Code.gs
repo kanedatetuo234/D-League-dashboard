@@ -99,7 +99,7 @@ function createResultRows_(input) {
     player_id: String(player.player_id || '').trim(),
     player_name: String(player.player_name || '').trim(),
     score: toNumber_(player.score),
-    seat_order: toNumber_(player.seat_order),
+    seat_order: normalizeSeat_(player.seat_order),
     yakitori: parseBoolean_(player.yakitori),
     chips: toNumber_(player.chips),
     yakuman: parseBoolean_(input.yakuman),
@@ -109,7 +109,7 @@ function createResultRows_(input) {
   }));
   if (players.some(player => !player.player_id || !isFinite(player.score))) throw new Error('プレイヤー、持ち点を確認してください。');
   if (new Set(players.map(player => player.player_id)).size !== 4) throw new Error('プレイヤーは4人とも別々にしてください。');
-  if (new Set(players.map(player => player.seat_order)).size !== 4 || players.some(player => player.seat_order < 1 || player.seat_order > 4)) throw new Error('座順は1〜4を重複なく入力してください。');
+  if (new Set(players.map(player => player.seat_order)).size !== 4 || players.some(player => !['東', '南', '西', '北'].includes(player.seat_order))) throw new Error('席順は東・南・西・北を重複なく入力してください。');
   if (new Set(players.map(player => player.rank)).size !== 4 || players.some(player => player.rank < 1 || player.rank > 4)) throw new Error('順位は1〜4を重複なく入力してください。');
   const date = input.date ? formatDate_(input.date) : Utilities.formatDate(new Date(), CONFIG.TIME_ZONE, 'yyyy-MM-dd');
   const gameId = String(input.game_id || '').trim() || `G${Utilities.formatDate(new Date(), CONFIG.TIME_ZONE, 'yyyyMMddHHmmss')}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
@@ -266,7 +266,7 @@ function normalizeResult_(row) {
     player_name: String(row.player_name || '').trim(),
     score: toNumber_(row.score),
     rank: toNumber_(row.rank),
-    seat_order: toNumber_(row.seat_order),
+    seat_order: normalizeSeat_(row.seat_order),
     yakitori: parseBoolean_(row.yakitori),
     point: null,
     yakuman: parseBoolean_(row.yakuman),
@@ -304,7 +304,7 @@ function validateResults_(results) {
     if (!result.player_id) warnings.push(`行${index + 2}: player_idが未入力です。`);
     if (!isFinite(result.score)) warnings.push(`行${index + 2}: scoreが数値ではありません。`);
     if (result.rank < 1 || result.rank > 4) warnings.push(`行${index + 2}: rankは1〜4で入力してください。`);
-    if (result.seat_order < 1 || result.seat_order > 4) warnings.push(`行${index + 2}: seat_orderは1〜4で入力してください。`);
+    if (!['東', '南', '西', '北'].includes(result.seat_order)) warnings.push(`行${index + 2}: seat_orderは東・南・西・北で入力してください。`);
     if (!games[result.game_id]) games[result.game_id] = [];
     games[result.game_id].push(result);
   });
@@ -363,13 +363,15 @@ function distributeTenths_(value, players) {
   const baseTenths = Math.floor(totalTenths / players.length);
   let remainder = totalTenths - baseTenths * players.length;
   const allocations = new Map();
-  players.slice().sort((a, b) => a.seat_order - b.seat_order).forEach((player, index) => {
+  players.slice().sort((a, b) => seatRank_(a.seat_order) - seatRank_(b.seat_order)).forEach((player, index) => {
     allocations.set(player, (baseTenths + (index < remainder ? 1 : 0)) / 10);
   });
   return players.map(player => allocations.get(player));
 }
 
 function toNumber_(value) { const number = Number(value); return isNaN(number) ? NaN : number; }
+function normalizeSeat_(value) { const text = String(value == null ? '' : value).trim(); return ({ '1': '東', '2': '南', '3': '西', '4': '北', '東': '東', '南': '南', '西': '西', '北': '北' })[text] || ''; }
+function seatRank_(value) { return ({ '東': 1, '南': 2, '西': 3, '北': 4 })[normalizeSeat_(value)] || 99; }
 function round1_(value) { return Math.round((value + Number.EPSILON) * 10) / 10; }
 function parseBoolean_(value) { return value === true || String(value).trim().toLowerCase() === 'true' || String(value).trim() === '1' || String(value).trim() === 'はい'; }
 function formatDate_(value) { if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value)) return Utilities.formatDate(value, CONFIG.TIME_ZONE, 'yyyy-MM-dd'); const date = new Date(value); return isNaN(date) ? String(value || '') : Utilities.formatDate(date, CONFIG.TIME_ZONE, 'yyyy-MM-dd'); }
