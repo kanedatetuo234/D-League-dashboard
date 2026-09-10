@@ -44,6 +44,14 @@ document.addEventListener('DOMContentLoaded',()=>{const schedulePlayer=$('#sched
 function escapeScheduleText(value){return String(value||'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));}
 renderScheduleTable=function(){const active=memberSeed.filter(member=>member.active);const memberMap=new Map(memberSeed.map(member=>[member.player_id,member.display_name]));const today=new Date();today.setHours(0,0,0,0);const dates=Array.from({length:7},(_,i)=>{const d=new Date(today);d.setDate(today.getDate()+i);return localDateKey(d);});const get=(date,id)=>{const row=scheduleRecords.find(item=>item.date===date&&item.player_id===id);return row?.status||((row?.available===true)?'可':'');};const count=(date,status)=>active.filter(m=>get(date,m.player_id)===status).length;const comments=date=>scheduleRecords.filter(row=>row.date===date&&row.comment).map(row=>`<div class="schedule-comment-item"><b>${escapeScheduleText(memberMap.get(row.player_id)||row.player_id)}：</b>${escapeScheduleText(row.comment)}</div>`).join('')||'<span class="schedule-no-comment">—</span>';$('#schedule-table-wrap').innerHTML=`<table class="schedule-table"><thead><tr><th>日程</th><th>可</th><th>未定</th><th>不可</th><th>コメント（全件）</th></tr></thead><tbody>${dates.map(date=>`<tr><th>${date}（${new Date(date+'T00:00:00').toLocaleDateString('ja-JP',{weekday:'short'})}）</th><td>${count(date,'可')}人</td><td>${count(date,'未定')}人</td><td>${count(date,'不可')}人</td><td>${comments(date)}</td></tr>`).join('')}</tbody></table>`;};
 renderCandidates = renderScheduleTable;
+const renderPlayerWithRecentAverage=renderPlayer;
+renderPlayer=function(id){
+  renderPlayerWithRecentAverage(id);
+  const recent=activeRecords.map((record,index)=>({...record,_index:index})).filter(record=>record.player_id===id).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.game_id||'').localeCompare(String(b.game_id||''))||a._index-b._index).slice(-10);
+  const average=recent.length?recent.reduce((sum,record)=>sum+Number(record.rank||0),0)/recent.length:null;
+  const stats=$('#personal-stats');
+  if(stats)stats.insertAdjacentHTML('beforeend',`<div class="stat-box"><small>直近${recent.length||10}局平均順位</small><b>${average===null?'—':average.toFixed(2)}</b></div>`);
+};
 // 入力欄は「順位ごと」に固定し、選択肢は対局日の参加可能（可）メンバーに限定する。
 let entryEditRows=[];
 function normalizeSeatLabel(value){const text=String(value??'').trim();return {'1':'東','2':'南','3':'西','4':'北','東':'東','南':'南','西':'西','北':'北'}[text]||'';}
