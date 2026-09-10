@@ -19,22 +19,23 @@
     });
     const orderedGames = [...games.values()].sort((a, b) => String(a.date).localeCompare(String(b.date)) || a.index - b.index);
     const buckets = period === 'year' ? [...new Map(orderedGames.map(game => [String(game.date).slice(0, 7), game])).keys()] : orderedGames.map((_, index) => String(index));
-    const labels = period === 'year' ? buckets.map(value => value.slice(5).replace('-', '/')) : orderedGames.map(game => {
+    const firstLabel = orderedGames.length ? (period === 'year' ? String(orderedGames[0].date).slice(5).replace('-', '/') : String(orderedGames[0].date || '').slice(5).replace('-', '/')) : '';
+    const labels = orderedGames.length ? [firstLabel].concat(period === 'year' ? buckets.map(value => value.slice(5).replace('-', '/')) : orderedGames.map(game => {
       const date = String(game.date || '').slice(5).replace('-', '/');
       return date || `対局${game.index + 1}`;
-    });
+    })) : [];
     const ids = [...new Set(records.map(record => record.player_id))];
     const datasets = ids.map((id, index) => {
       const member = memberMap.get(id) || {};
       let total = 0;
-      const data = period === 'year' ? buckets.map(bucket => {
+      const data = period === 'year' ? [0].concat(buckets.map(bucket => {
         orderedGames.filter(game => String(game.date).slice(0, 7) === bucket).forEach(game => { const row = game.rows.find(item => item.player_id === id); if (row) total += Number(row.point) || 0; });
         return Number(total.toFixed(1));
-      }) : orderedGames.map(game => {
+      })) : [0].concat(orderedGames.map(game => {
         const row = game.rows.find(item => item.player_id === id);
         if (row) total += Number(row.point) || 0;
         return Number(total.toFixed(1));
-      });
+      }));
       return { label: member.display_name || records.find(record => record.player_id === id)?.player_name || id, borderColor: member.color || colors[index % colors.length], backgroundColor: member.color || colors[index % colors.length], data, tension: 0.35, pointRadius: 3, spanGaps: true };
     });
     return makeChart('point-history-chart', { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: { callbacks: { label: context => ` ${context.dataset.label}: ${context.parsed.y.toFixed(1)}pt` } } }, scales: { x: { grid: { display: false } }, y: { title: { display: true, text: '累計ポイント' }, grid: { color: '#e5e8f0' } } } } });
