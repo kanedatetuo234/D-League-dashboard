@@ -57,9 +57,11 @@ let entryEditRows=[];
 function normalizeSeatLabel(value){const text=String(value??'').trim();return {'1':'東','2':'南','3':'西','4':'北','東':'東','南':'南','西':'西','北':'北'}[text]||'';}
 function entryEligibleMembers(date, existingRows=[]){
   const active=memberSeed.filter(member=>member.active);
-  const availableIds=new Set(scheduleRecords.filter(row=>String(row.date||'').slice(0,10)===date&&scheduleStatus(row)==='可').map(row=>row.player_id));
+  const dateRows=scheduleRecords.filter(row=>String(row.date||'').slice(0,10)===date);
+  const hasScheduleAnswer=dateRows.some(row=>['可','未定','不可'].includes(scheduleStatus(row)));
+  const availableIds=new Set(dateRows.filter(row=>scheduleStatus(row)==='可').map(row=>row.player_id));
   const existingIds=new Set(existingRows.map(row=>row.player_id));
-  return active.filter(member=>availableIds.has(member.player_id)||existingIds.has(member.player_id));
+  return active.filter(member=>!hasScheduleAnswer||availableIds.has(member.player_id)||existingIds.has(member.player_id));
 }
 renderEntryForm=function(){
   const date=$('#entry-date').value;
