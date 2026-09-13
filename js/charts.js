@@ -17,10 +17,10 @@
       if (!games.has(key)) games.set(key, { date: record.date, index, rows: [] });
       games.get(key).rows.push(record);
     });
-    const orderedGames = [...games.values()].sort((a, b) => String(a.date).localeCompare(String(b.date)) || a.index - b.index);
+    const orderedGames = [...games.values()].sort((a, b) => Date.parse(`${String(a.date || '').slice(0, 10)}T00:00:00`) - Date.parse(`${String(b.date || '').slice(0, 10)}T00:00:00`) || String(a.rows[0]?.game_id || '').localeCompare(String(b.rows[0]?.game_id || ''), 'ja') || a.index - b.index);
     const buckets = period === 'year' ? [...new Map(orderedGames.map(game => [String(game.date).slice(0, 7), game])).keys()] : orderedGames.map((_, index) => String(index));
     const firstLabel = orderedGames.length ? (period === 'year' ? String(orderedGames[0].date).slice(5).replace('-', '/') : String(orderedGames[0].date || '').slice(5).replace('-', '/')) : '';
-    const labels = orderedGames.length ? [firstLabel].concat(period === 'year' ? buckets.map(value => value.slice(5).replace('-', '/')) : orderedGames.map(game => {
+    const labels = orderedGames.length ? ['開始'].concat(period === 'year' ? buckets.map(value => value.slice(5).replace('-', '/')) : orderedGames.map(game => {
       const date = String(game.date || '').slice(5).replace('-', '/');
       return date || `対局${game.index + 1}`;
     })) : [];
@@ -41,11 +41,10 @@
     return makeChart('point-history-chart', { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: { callbacks: { label: context => ` ${context.dataset.label}: ${context.parsed.y.toFixed(1)}pt` } } }, scales: { x: { grid: { display: false } }, y: { title: { display: true, text: '累計ポイント' }, grid: { color: '#e5e8f0' } } } } });
   }
   function renderPersonal(player, records) {
-    const playerRecords = records.filter(record => record.player_id === player.id).slice(-10); let total = 0;
-    const points = playerRecords.map(record => { total += Number(record.point) || 0; return Number(total.toFixed(1)); });
-    let rankTotal = 0;
-    const averageRanks = playerRecords.map(record => Number(((rankTotal += Number(record.rank) || 0) / (playerRecords.indexOf(record) + 1)).toFixed(2)));
-    return makeChart('personal-chart', { type: 'line', data: { labels: playerRecords.map(record => record.date.slice(5).replace('-', '/')), datasets: [{ label: '累計ポイント', data: points, borderColor: colors[0], backgroundColor: colors[0], yAxisID: 'points', tension: 0.35 }, { label: '平均順位', data: averageRanks, borderColor: '#6587e8', backgroundColor: '#6587e8', yAxisID: 'rank', tension: 0.35 }] }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } }, scales: { points: { position: 'left', title: { display: true, text: '累計pt' }, grid: { color: '#e5e8f0' } }, rank: { position: 'right', reverse: true, min: 1, max: 4, title: { display: true, text: '平均順位' }, grid: { drawOnChartArea: false } } } } });
+    const playerRecords = records.filter(record => record.player_id === player.id).map((record, index) => ({record, index})).sort((a,b) => Date.parse(`${String(a.record.date||'').slice(0,10)}T00:00:00`) - Date.parse(`${String(b.record.date||'').slice(0,10)}T00:00:00`) || String(a.record.game_id||'').localeCompare(String(b.record.game_id||''),'ja') || a.index-b.index).map(item=>item.record).slice(-10); let total = 0, rankTotal = 0;
+    const points = [0], averageRanks = [null];
+    playerRecords.forEach((record,index) => { total += Number(record.point) || 0; rankTotal += Number(record.rank) || 0; points.push(Number(total.toFixed(1))); averageRanks.push(Number((rankTotal/(index+1)).toFixed(2))); });
+    return makeChart('personal-chart', { type: 'line', data: { labels: ['開始', ...playerRecords.map(record => record.date.slice(5).replace('-', '/'))], datasets: [{ label: '累計ポイント', data: points, borderColor: colors[0], backgroundColor: colors[0], yAxisID: 'points', tension: 0.35 }, { label: '平均順位', data: averageRanks, borderColor: '#6587e8', backgroundColor: '#6587e8', yAxisID: 'rank', tension: 0.35, spanGaps: false }] }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } }, scales: { points: { position: 'left', title: { display: true, text: '累計pt' }, grid: { color: '#e5e8f0' } }, rank: { position: 'right', reverse: true, min: 1, max: 4, title: { display: true, text: '平均順位' }, grid: { drawOnChartArea: false } } } } });
   }
   global.DLeagueCharts = { renderPointHistory, renderPersonal };
 }(window));
