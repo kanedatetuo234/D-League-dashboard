@@ -1,0 +1,4 @@
+project_id = "hdemiwbnjnmihmiwvgaq"
+
+[functions.match-write]
+verify_jwt = false

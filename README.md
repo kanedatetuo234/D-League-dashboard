@@ -1,6 +1,33 @@
-# D-League 戦績表
+# D-League Forge
 
-麻雀リーグ「D-League」の戦績ダッシュボードです。Step 7まで実装済みで、設定済みのGoogle Apps Script APIから対局データを取得します。API未接続時はダミーデータへ切り替え可能です。
+麻雀リーグ「D-League」のSupabase移行・強化版です。
+
+## 移行方針
+
+- 公開URLは現行のCloudflare環境を維持する
+- 現行のGoogleスプレッドシート・GASは移行完了まで停止しない
+- SupabaseのPostgreSQLを対局・予定・設定データの正本にする
+- Supabase Storageを上がり牌写真の保存先にする
+- 登録・修正・ポイント計算はSupabase Edge Functionsへ移す
+
+## 現在の状態
+
+- `supabase/migrations/` に初期DBと監査テーブルのスキーマを追加済み
+- Supabaseプロジェクト作成、基本テーブル作成、Storage作成まで完了
+- 画面は現行版を複製した移行用ベース
+- アプリのSupabase API切替、データ移行、本番切替は未完了
+- 詳細な進捗は `docs/SUPABASE_MIGRATION_CHECKLIST.md` を参照
+
+## ディレクトリ
+
+```text
+app/                 # 将来の画面配置先
+css/ js/ assets/     # 現在の画面資産（移行中）
+supabase/migrations/ # DBスキーマ
+supabase/functions/  # 登録・修正・計算API（これから追加）
+scripts/             # Sheetsからの移行処理（これから追加）
+tests/               # 移行前後の比較テスト（これから追加）
+```
 
 ## ローカル確認
 

@@ -1,0 +1,18 @@
+# Cloudflare公開対象は画面に必要なファイルだけに限定する
+.git/
+.codex/
+.agents/
+docs/
+scripts/
+gas/
+supabase/
+tests/
+worker.js
+wrangler.toml
+README.md
+AGENTS.md
+*.sql
+*.mjs
+*.csv
+*.dump
+*.log
