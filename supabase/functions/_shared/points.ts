@@ -78,4 +78,6 @@ export function validatePlayers(players: any[]) {
   if (new Set(players.map(player => Number(player.rank))).size !== 4 || players.some(player => ![1, 2, 3, 4].includes(Number(player.rank)))) throw new Error('順位は1位から4位までを重複なく指定してください。');
   if (new Set(players.map(player => String(player.seat))).size !== 4 || players.some(player => !['東', '南', '西', '北'].includes(String(player.seat)))) throw new Error('席は東・南・西・北を重複なく指定してください。');
   if (players.some(player => !Number.isFinite(Number(player.score)))) throw new Error('持ち点は数値で入力してください。');
+  const totalScore = players.reduce((sum, player) => sum + Number(player.score), 0);
+  if (totalScore !== 100000) throw new Error(`持ち点の合計は100000点にしてください（現在${totalScore.toLocaleString()}点）。`);
 }

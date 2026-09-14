@@ -1,5 +1,4 @@
-.chart-canvas-wrap{height:290px;position:relative}
-.personal-chart-wrap{height:220px;position:relative;margin-top:18px}
+.chart-canvas-wrap{height:290px;position:relative;width:100%;min-width:0}.personal-chart-wrap{height:220px;position:relative;margin-top:18px;width:100%;min-width:0}.chart-canvas-wrap canvas,.personal-chart-wrap canvas{display:block;width:100%!important;height:100%!important;max-width:100%}
 .donut-chart-wrap{width:170px;height:170px;position:relative;flex:none}
 @media(max-width:768px){.chart-canvas-wrap{height:235px}.personal-chart-wrap{height:205px}.donut-chart-wrap{width:150px;height:150px}}
 .empty-state{color:var(--muted);text-align:center;font-size:12px;padding:18px 8px}
