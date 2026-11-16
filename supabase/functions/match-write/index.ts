@@ -67,6 +67,13 @@ Deno.serve(async (request) => {
       const resolved = await resolveMatchId(admin, gameId);
       const { data: before, error: beforeError } = await admin.from('matches').select('*, match_players(*)').eq('id', resolved).single();
       if (beforeError) throw beforeError;
+      const photos = await admin.from('match_photos').select('storage_path').eq('match_id', resolved);
+      if (photos.error) throw photos.error;
+      const photoPaths = (photos.data || []).map(photo => String(photo.storage_path || '')).filter(Boolean);
+      if (photoPaths.length) {
+        const removedPhotos = await admin.storage.from('match-photos').remove(photoPaths);
+        if (removedPhotos.error) throw removedPhotos.error;
+      }
       const { error: deleteError } = await admin.from('matches').delete().eq('id', resolved);
       if (deleteError) throw deleteError;
       await admin.from('match_change_logs').insert({ match_id: null, action: 'delete', changed_by: changedBy, before_data: before, after_data: null });

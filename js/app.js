@@ -141,11 +141,19 @@ document.addEventListener('DOMContentLoaded',()=>{
     $('#schedule-detail-dialog').close();
     editGame(button.dataset.editGame);
   },true);
+  document.addEventListener('click',event=>{
+    const button=event.target.closest('.match-history-delete');
+    if(!button)return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    deleteGame(button.dataset.deleteGame);
+  },true);
   const detail=$('#schedule-detail-dialog');
   if(detail)detail.addEventListener('click',event=>{if(event.target===detail)detail.close();});
 });
 async function deleteGame(gameId){
   if(!gameId||!window.confirm('この対局を削除しますか？削除後は元に戻せません。'))return;
+  $('#schedule-detail-dialog')?.close();
   try{await window.DLeagueApi.postResult({action:'deleteGame',game_id:gameId});window.location.reload();}
   catch(error){window.alert(error.message||'対局を削除できませんでした。');}
 }
